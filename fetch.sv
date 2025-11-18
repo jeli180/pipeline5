@@ -18,7 +18,7 @@ module fetch (
 
   //stalls are from lw being fetched while instruction behind in EX needs lw regD, can be multiple cycles
 
-  typedef enum logic [1:0]{
+  typedef enum logic [2:0]{
     SEND,
     WAIT,
     SEND_O,
@@ -41,7 +41,8 @@ module fetch (
     addr_ready = 1'b0;
     next_pc = pc;
     next_finalI = nop;
-    next_target = '0;
+    next_target = target;
+    addr = '0;
 
     case (state) 
 
@@ -50,9 +51,11 @@ module fetch (
         if (jal) begin //jal has prio over everything
           addr = j_target;
           addr_ready = 1'b1;
+          next_target = j_target;
         end else if (branch) begin //branch and stall can never be at the same time, 
           addr = b_target;
           addr_ready = 1'b1;
+          next_target = b_target;
         end else if (!stall) begin //if stall, no instr requested from cache
           addr = pc + 4;
           addr_ready = 1'b1;
