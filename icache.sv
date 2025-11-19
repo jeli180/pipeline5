@@ -154,22 +154,7 @@ module icache (
       write <= next_write;
       wb <= next_wb;
       ct <= next_ct;
-      data[0] <= next_data[0];
-      data[1] <= next_data[1];
-      data[2] <= next_data[2];
-      data[3] <= next_data[3];
-      data[4] <= next_data[4];
-      data[5] <= next_data[5];
-      data[6] <= next_data[6];
-      data[7] <= next_data[7];
-      data[8] <= next_data[8];
-      data[9] <= next_data[9];
-      data[10] <= next_data[10];
-      data[11] <= next_data[11];
-      data[12] <= next_data[12];
-      data[13] <= next_data[13];
-      data[14] <= next_data[14];
-      data[15] <= next_data[15];
+      data <= next_data;
     end
   end
 

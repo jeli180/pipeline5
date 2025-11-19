@@ -181,8 +181,3 @@ module decode (
     end
   end
 endmodule
-
-
-
-
-
