@@ -18,7 +18,7 @@ module decode (
   output logic [31:0] reg1val, reg2val
 );
 
-  //supports rtype, itype, branching, jal, jalr, lw, sw, NO UTYPE OR ENVIRONMENT
+  //supports rtype, itype, branching, jal, jalr, lw (full word), sw (full word), NO UTYPE OR ENVIRONMENT
 
   //internal signals
   logic next_rtype, next_itype, next_load, next_store, next_branch, next_jal, next_jalr;
