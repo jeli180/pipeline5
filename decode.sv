@@ -147,7 +147,7 @@ module decode (
 
   always_ff @(posedge clk or posedge rst) begin
     if (rst) begin
-      itype <= 0;
+      itype <= 1;
       rtype <= 0;
       load <= 0;
       store <= 0;
