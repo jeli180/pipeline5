@@ -3,8 +3,6 @@ module execute (
 
   //hazard
   input logic branch_flush, stall, jal_flush, //from mem and wb
-  input logic [31:0] stall_val, //loaded val mem was stalling for
-  input logic [4:0] regD_stall, //dependency reg for lw in mem
 
   //regD early sendback from mem and wb
   input logic [4:0] regD_mem, regD_wb,
@@ -18,19 +16,19 @@ module execute (
   input logic [31:0] reg1val, reg2val,
 
   //to mem
-  output logic regwrite, loadF, storeF, branchF, jalF, jalrF,
+  output logic regwrite, loadF, storeF, jalF, jalrF,
   output logic [31:0] target,
   output logic [31:0] result, //either mem addr for lw/sw, rd val for rtype/itype/jal/jalr
   output logic [31:0] store_data,
   output logic branch_cond,
   output logic [4:0] regDF
 );
-  //don't need to send rtype/itype flags to mem
+  //don't need to send rtype/itype flags to mem, branch flag covered by branch_cond
 
   //internal
   logic [31:0] final_reg1val, final_reg2val; //used for calculations
   logic next_stallreg, stallreg;
-  logic next_regwrite, next_loadF, next_storeF, next_branchF, next_jalF, next_jalrF; //pass through
+  logic next_regwrite, next_loadF, next_storeF, next_jalF, next_jalrF; //pass through
   logic [31:0] next_target, next_result, next_store_data; //calculated
   logic next_branch_cond; //calculated
   logic [4:0] next_regDF; //pass through
@@ -46,7 +44,6 @@ module execute (
     next_regwrite = 0;
     next_loadF = load;
     next_storeF = store;
-    next_branchF = branch;
     next_jalF = jal;
     next_jalrF = jalr;
     next_target = '0;
@@ -57,12 +54,12 @@ module execute (
 
     //fill final register vals
     if (!jal_flush) begin //don't need to store stall if everything is getting flushed
-      next_stallreg = stall; //used for negedge detection of stall -> use stall_val
+      next_stallreg = stall; //used for negedge detection of stall 
     end
     //on negedge stall, only dependency is lw regD
-    if (stallreg && !stall) begin //negedge stall, highest prio, directly after stall
-      if (regD_stall != 5'b0 && regD_stall == reg1) final_reg1val = stall_val;
-      if (regD_stall != 5'b0 && regD_stall == reg2) final_reg2val = stall_val;
+    if (stallreg && !stall && regwrite_mem) begin //negedge stall, highest prio, directly after stall
+      if (regD_mem != 5'b0 && regD_mem == reg1) final_reg1val = regD_val_mem;
+      if (regD_mem != 5'b0 && regD_mem == reg2) final_reg2val = regD_val_mem;
     end else if ((regD_mem == reg1 || regD_mem == reg2) && regwrite_mem && regD_mem != 5'b0) begin //does not interfere with stall logic since if stall, outputs are overriden below
       if (regD_mem == reg1) final_reg1val = regD_val_mem;
       if (regD_mem == reg2) final_reg2val = regD_val_mem;
@@ -127,11 +124,10 @@ module execute (
     else if (jal || jalr) next_result = pc + 4;
 
     //override should be at bottom of comb
-    if (jal_flush || branch_flush || stall) begin //outputs correspond to nop
+    if (jal_flush || branch_flush) begin //outputs correspond to nop
       next_regwrite = 0;
       next_loadF = 0;
       next_storeF = 0;
-      next_branchF = 0;
       next_jalF = 0;
       next_jalrF = 0;
       next_regDF = '0;
@@ -139,6 +135,17 @@ module execute (
       next_result = '0;
       next_store_data = '0;
       next_branch_cond = 0;
+    end else if (stall) begin
+      next_regwrite = regwrite;
+      next_loadF = loadF;
+      next_storeF = storeF;
+      next_jalF = jalF;
+      next_jalrF = jalrF;
+      next_regDF = regDF;
+      next_target = target;
+      next_result = result;
+      next_store_data = store_data;
+      next_branch_cond = branch_cond;
     end
   end
 
@@ -148,7 +155,6 @@ module execute (
       regwrite <= 0;
       loadF <= 0;
       storeF <= 0;
-      branchF <= 0;
       jalF <= 0;
       jalrF <= 0;
       target <= '0;
@@ -161,7 +167,6 @@ module execute (
       regwrite <= next_regwrite;
       loadF <= next_loadF;
       storeF <= next_storeF;
-      branchF <= next_branchF;
       jalF <= next_jalF;
       jalrF <= next_jalrF;
       target <= next_target;
