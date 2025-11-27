@@ -6,17 +6,18 @@ module icache (
 );
 
   //state machine for rewriting cache from new origin
-  typedef enum logic [1:0]{
+  typedef enum {
     START_WRITE, 
+    WAIT_BUSY,
     REWRITE,    
-    IDLE_WRITE, 
+    IDLE_WRITE
   } write_state;
 
   //state machine for miss fetching with wishbone
-  typedef enum logic [1:0]{
+  typedef enum {
     START_WB,
     POLL,
-    IDLE_WB,
+    IDLE_WB
   } wb_state;
 
   write_state next_write, write;
@@ -32,7 +33,7 @@ module icache (
   logic [31:0] rdata_solo;
 
   //wishbone signals for cache rewrite
-  logic req, valid_0, valid_1, valid_2, valid_3;
+  logic req, valid_0, valid_1, valid_2, valid_3, busy_0, busy_1, busy_2, busy_3;
   logic [31:0] addr_0, addr_1, addr_2, addr_3;
   logic [31:0] rdata_0, rdata_1, rdata_2, rdata_3;
 
@@ -65,7 +66,22 @@ module icache (
     addr_1 = '0;
     addr_2 = '0;
     addr_3 = '0;
-    next_data = data;
+    next_data[0] = data[0];
+    next_data[1] = data[1];
+    next_data[2] = data[2];
+    next_data[3] = data[3];
+    next_data[4] = data[4];
+    next_data[5] = data[5];
+    next_data[6] = data[6];
+    next_data[7] = data[7];
+    next_data[8] = data[8];
+    next_data[9] = data[9];
+    next_data[10] = data[10];
+    next_data[11] = data[11];
+    next_data[12] = data[12];
+    next_data[13] = data[13];
+    next_data[14] = data[14];
+    next_data[15] = data[15];
 
     //start logic
     if (send_pulse) begin
@@ -75,7 +91,7 @@ module icache (
       end else begin //miss
         next_wb = START_WB;
         if (origin != tag || write == IDLE_WRITE) begin //if cache is not currently being rewritten in the correct frame, start rewriting
-          next_write = START_WRITE;
+          next_write = START_WRITE; //this needs to be a complete restart, complete restart 
           next_origin = tag;
         end
       end
@@ -100,13 +116,19 @@ module icache (
     //cache rewrite statemachine
     case (write)
       START_WRITE: begin
-        req = 1'b1;
-        addr_0 = {origin, ct, 4'b0000};
-        addr_1 = {origin, ct, 4'b0100};
-        addr_2 = {origin, ct, 4'b1000};
-        addr_3 = {origin, ct, 4'b1100};
-        next_write = REWRITE;
+        if (busy_0 || busy_1 || busy_2 || busy_3) begin //cache rewrite in the middle of another rewrite
+          next_ct = 2'b00;
+          next_write = WAIT_BUSY;
+        end else begin
+          req = 1'b1;
+          addr_0 = {origin, ct, 4'b0000};
+          addr_1 = {origin, ct, 4'b0100};
+          addr_2 = {origin, ct, 4'b1000};
+          addr_3 = {origin, ct, 4'b1100};
+          next_write = REWRITE;
+        end
       end 
+      WAIT_BUSY: if (valid_0 && valid_1 && valid_2 && valid_3) next_write = START_WRITE;
       REWRITE: begin
         if (valid_0 && valid_1 && valid_2 && valid_3) begin
           next_data[{ct, 2'b00}] = {1'b1, origin, rdata_0};
@@ -154,7 +176,22 @@ module icache (
       write <= next_write;
       wb <= next_wb;
       ct <= next_ct;
-      data <= next_data;
+      data[0] = next_data[0];
+      data[1] = next_data[1];
+      data[2] = next_data[2];
+      data[3] = next_data[3];
+      data[4] = next_data[4];
+      data[5] = next_data[5];
+      data[6] = next_data[6];
+      data[7] = next_data[7];
+      data[8] = next_data[8];
+      data[9] = next_data[9];
+      data[10] = next_data[10];
+      data[11] = next_data[11];
+      data[12] = next_data[12];
+      data[13] = next_data[13];
+      data[14] = next_data[14];
+      data[15] = next_data[15];
     end
   end
 
@@ -188,7 +225,7 @@ module icache (
     .addr(addr_0),
     .wdata(32'd0),
     .rdata(rdata_0),
-    .busy(),
+    .busy(busy_0),
     .valid(valid_0)
     );
 
@@ -204,7 +241,7 @@ module icache (
     .addr(addr_1),
     .wdata(32'd0),
     .rdata(rdata_1),
-    .busy(),
+    .busy(busy_1),
     .valid(valid_1)
   );
 
@@ -220,7 +257,7 @@ module icache (
     .addr(addr_2),
     .wdata(32'd0),
     .rdata(rdata_2),
-    .busy(),
+    .busy(busy_2),
     .valid(valid_2)
   );
 
@@ -236,7 +273,7 @@ module icache (
     .addr(addr_3),
     .wdata(32'd0),
     .rdata(rdata_3),
-    .busy(),
+    .busy(busy_3),
     .valid(valid_3)
   );
 

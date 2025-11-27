@@ -18,12 +18,12 @@ module fetch (
 
   //stalls are from lw being fetched while instruction behind in EX needs lw regD, can be multiple cycles
 
-  typedef enum logic [2:0]{
+  typedef enum {
     SEND,
     WAIT,
     SEND_O,
     WAIT_ACK,
-    WAIT_O,
+    WAIT_O
   } state_t;
 
   state_t next_state, state;

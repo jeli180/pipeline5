@@ -25,7 +25,7 @@ module tb_icache;
     rst = 0;
   endtask
 
-  task cache_transaction (
+  task trans (
     input logic [31:0] addr_in
   );
     //TASK IS CALLED AFTER DATA TRANSFER CYCLE, SO SEND_PULSE AND ACK ARE LOW
@@ -36,9 +36,9 @@ module tb_icache;
     if (ack) begin
       inst_rec = inst;
       if (inst_rec == addr_in) begin
-        $display("[%0t] PASS: addr=0x%08h inst=0x%08h", $time, addr_in, inst_rec);
+        $display("[%0t] HIT/PASS: addr=0x%08h inst=0x%08h", $time, addr_in, inst_rec);
       end else begin
-        $display("[%0t] FAIL: addr=0x%08h expected=0x%08h got=0x%08h", $time, addr_in, addr_in, inst_rec);
+        $display("[%0t] HIT/FAIL: addr=0x%08h expected=0x%08h got=0x%08h", $time, addr_in, addr_in, inst_rec);
       end
       @(posedge clk);
       send_pulse = 0;
@@ -49,9 +49,9 @@ module tb_icache;
       end while (!ack);
       inst_rec = inst;
       if (inst_rec == addr_in) begin
-        $display("[%0t] PASS: addr=0x%08h inst=0x%08h", $time, addr_in, inst_rec);
+        $display("[%0t] MISS/PASS: addr=0x%08h inst=0x%08h", $time, addr_in, inst_rec);
       end else begin
-        $display("[%0t] FAIL: addr=0x%08h expected=0x%08h got=0x%08h", $time, addr_in, addr_in, inst_rec);
+        $display("[%0t] MISS/FAIL: addr=0x%08h expected=0x%08h got=0x%08h", $time, addr_in, addr_in, inst_rec);
       end
       @(posedge clk);
     end
@@ -62,7 +62,30 @@ module tb_icache;
     $dumpvars(0, tb_icache);     // use your top tb module name here
     
     reset();
+    //needs 12 cycles to fill completely
+    //first 3 cycles
+    trans(32'h0); //miss
+    //should be hits
+    trans(32'h4);
+    trans(32'h8);
 
+    //should be one hit above
+    trans(32'd12);
+    trans(32'd8);
+    trans(32'd4);
+    trans(32'd24);
+    trans(32'd60);
+
+    //flush cache
+    trans(32'd64);
+    trans(32'd56); //should still be hit
+    trans(32'd52);
+    trans(32'd72);
+    trans(32'd160);
+    trans(32'd144);
+    trans(32'd8);
+
+    #20;
     $finish;
   end
 endmodule

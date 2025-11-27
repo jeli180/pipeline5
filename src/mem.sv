@@ -29,9 +29,9 @@ module mem (
   input logic dack
 );
 
-  typedef enum logic [0:0]{
+  typedef enum {
     IDLE,
-    STALL,
+    STALL
   } state_t;
 
   //internal
