@@ -61,6 +61,7 @@ module fetch (
           addr_ready = 1'b1;
         end
 
+        //make hits 1 cycle, remove some of this
         //if stall, then cache_ack will never go high since no request
         if (cache_ack && jal) begin //jal hit
           next_pc = j_target;
@@ -73,7 +74,6 @@ module fetch (
           next_finalI = inst;
         end else if (stall && !jal) begin //if stall, no cache requests, repeat SEND state
           next_pc = pc;
-          next_finalI = finalI;
         end else if (jal | branch) begin //jal/branch misses
           next_state = WAIT_O;
         end else begin //normal misses
@@ -110,6 +110,7 @@ module fetch (
         addr_ready = 1'b1;
         addr = target;
 
+        //make hits 1 cycle, so remove
         if (cache_ack) begin
           next_finalI = inst;
           next_pc = target;

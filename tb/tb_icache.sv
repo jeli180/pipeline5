@@ -24,7 +24,7 @@ module tb_icache;
     @(posedge clk);
     rst = 0;
   endtask
-
+  //========= REQUIRES INSTRUCTIONS.MEM FILE TO HAVE INSTRUCTIONS MATCHING THEIR ADDR
   task trans (
     input logic [31:0] addr_in
   );
@@ -33,6 +33,9 @@ module tb_icache;
     send_pulse = 1;
     addr = addr_in;
     #0;
+    @(posedge clk);
+    #0;
+    @(posedge clk);
     if (ack) begin
       inst_rec = inst;
       if (inst_rec == addr_in) begin
@@ -58,8 +61,8 @@ module tb_icache;
   endtask
 
   initial begin
-    $dumpfile("waves.vcd");   // MUST match $wave in the script
-    $dumpvars(0, tb_icache);     // use your top tb module name here
+    $dumpfile("waves.vcd");
+    $dumpvars(0, tb_icache);
     
     reset();
     //needs 12 cycles to fill completely

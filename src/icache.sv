@@ -20,8 +20,15 @@ module icache (
     IDLE_WB
   } wb_state;
 
+  //state machine for hit
+  typedef enum {
+    REC,
+    SEND
+  } hit_state;
+
   write_state next_write, write;
   wb_state next_wb, wb;
+  hit_state next_hit, hit;
 
   //internal signals
   logic [58:0] data [0:15]; //{valid, 26b tag, 32b inst}
@@ -39,9 +46,10 @@ module icache (
 
   //other signals
   logic [1:0] ct, next_ct; //4 wb, ct tracks 4 cycles of transactions to fill 16 instructions
-  logic [3:0] idx;
+  logic [3:0] idx, next_idx, reg_idx;
   logic [25:0] tag;
   logic ack_hit, ack_miss; //acks for when instruction is ready after hit and miss
+
 
   assign idx = addr [5:2];
   assign tag = addr [31:6];
@@ -52,6 +60,7 @@ module icache (
     ack_miss = 1'b0;
     next_wb = wb;
     req_solo = 1'b0;
+    next_idx = idx;
 
     //start signals
     ack_hit = 1'b0;
@@ -83,19 +92,7 @@ module icache (
     next_data[14] = data[14];
     next_data[15] = data[15];
 
-    //start logic
-    if (send_pulse) begin
-      if (data[idx][58] && tag == data[idx][57:32]) begin //hit
-        inst = data[idx][31:0];
-        ack_hit = 1'b1;
-      end else begin //miss
-        next_wb = START_WB;
-        if (origin != tag || write == IDLE_WRITE) begin //if cache is not currently being rewritten in the correct frame, start rewriting
-          next_write = START_WRITE; //this needs to be a complete restart, complete restart 
-          next_origin = tag;
-        end
-      end
-    end
+    next_hit = hit;
 
     //wb statemachine (for misses)
     case (wb)
@@ -112,6 +109,30 @@ module icache (
       end
       default:;
     endcase
+    
+    //hit statemachine
+    case (hit)
+      REC: begin
+        if (send_pulse) begin
+          if (data[idx][58] && tag == data[idx][57:32]) begin //hit
+            next_hit = SEND;
+          end else begin //miss
+            next_wb = START_WB;
+            if (origin != tag || write == IDLE_WRITE) begin //if cache is not currently being rewritten in the correct frame, start rewriting
+              next_write = START_WRITE; //this needs to be a complete restart, complete restart 
+              next_origin = tag;
+            end
+          end
+        end
+      end
+      SEND: begin //need registered
+        next_hit = REC;
+        inst = data[reg_idx][31:0];
+        ack_hit = 1'b1;
+      end
+      default:;
+    endcase
+
 
     //cache rewrite statemachine
     case (write)
@@ -154,7 +175,9 @@ module icache (
       origin <= '0;
       write <= IDLE_WRITE;
       wb <= IDLE_WB;
+      hit <= REC;
       ct <= '0;
+      reg_idx <= 4'b0;
       data[0] <= '0;
       data[1] <= '0;
       data[2] <= '0;
@@ -172,6 +195,8 @@ module icache (
       data[14] <= '0;
       data[15] <= '0;
     end else begin
+      reg_idx <= next_idx;
+      hit <= next_hit;
       origin <= next_origin;
       write <= next_write;
       wb <= next_wb;
