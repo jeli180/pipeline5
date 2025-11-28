@@ -12,6 +12,12 @@ if (-not $tb) {
 # Root folder where this script lives
 $root = $PSScriptRoot
 
+# === Ensure sim/ exists ===
+$simDir = Join-Path $root "sim"
+if (-not (Test-Path $simDir)) {
+    New-Item -ItemType Directory -Path $simDir | Out-Null
+}
+
 # Collect all .v and .sv files in src/ and tb/ under the root
 $searchPath = @(
     (Join-Path $root "src")
@@ -28,8 +34,9 @@ if (-not $srcFiles) {
 # Build a quoted list of full paths (handles spaces in path names)
 $src  = ($srcFiles | ForEach-Object { '"' + $_.FullName + '"' }) -join " "
 
-$out  = "sim_$tb.out"
-$wave = "waves.vcd"
+# Put sim binary & waves in sim/
+$out  = Join-Path $simDir ("sim_{0}.out" -f $tb)
+$wave = Join-Path $simDir "waves.vcd"
 
 $cmd = "iverilog -g2012 -s $tb -o `"$out`" $src"
 Write-Host ">> $cmd"
@@ -43,7 +50,7 @@ vvp $out
 if (Test-Path $wave) {
     Write-Host ">> opening $wave in GTKWave"
 
-    # FULL PATH TO gtkwave.exe —> change this to your actual install path
+    # FULL PATH TO gtkwave.exe —> change this to your actual install path if needed
     $gtkwaveExe = "C:\iverilog\gtkwave\bin\gtkwave.exe"
 
     if (Test-Path $gtkwaveExe) {
@@ -52,5 +59,5 @@ if (Test-Path $wave) {
         Write-Host "Cannot find gtkwave at $gtkwaveExe. Open $wave manually in GTKWave."
     }
 } else {
-    Write-Host "No $wave produced (did you call `\$dumpfile`/`\$dumpvars` in $tb?)."
+    Write-Host "No $wave produced (did you call `\$dumpfile`/`\$dumpvars` in $tb, with path matching sim/waves.vcd?)."
 }

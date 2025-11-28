@@ -37,7 +37,7 @@ module icache (
 
   //wishbone signals for miss fetch
   logic req_solo, valid_solo; 
-  logic [31:0] rdata_solo;
+  logic [31:0] rdata_solo, next_addr_solo, addr_solo;
 
   //wishbone signals for cache rewrite
   logic req, valid_0, valid_1, valid_2, valid_3, busy_0, busy_1, busy_2, busy_3;
@@ -61,6 +61,7 @@ module icache (
     next_wb = wb;
     req_solo = 1'b0;
     next_idx = idx;
+    next_addr_solo = addr;
 
     //start signals
     ack_hit = 1'b0;
@@ -177,6 +178,7 @@ module icache (
       wb <= IDLE_WB;
       hit <= REC;
       ct <= '0;
+      addr_solo <= '0;
       reg_idx <= 4'b0;
       data[0] <= '0;
       data[1] <= '0;
@@ -201,6 +203,7 @@ module icache (
       write <= next_write;
       wb <= next_wb;
       ct <= next_ct;
+      addr_solo <= next_addr_solo;
       data[0] = next_data[0];
       data[1] = next_data[1];
       data[2] = next_data[2];
@@ -230,7 +233,7 @@ module icache (
     .rst_n(~rst),
     .req(req_solo),
     .we(1'b0),
-    .addr(addr),
+    .addr(addr_solo),
     .wdata(32'd0),
     .rdata(rdata_solo),
     .busy(),

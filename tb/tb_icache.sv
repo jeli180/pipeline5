@@ -29,6 +29,7 @@ module tb_icache;
     input logic [31:0] addr_in
   );
     //TASK IS CALLED AFTER DATA TRANSFER CYCLE, SO SEND_PULSE AND ACK ARE LOW
+    //HIT MISS TERMINAL PRINTING IS INCORRECT, MORE HITS THAN IT SAYS
     logic [31:0] inst_rec;
     send_pulse = 1;
     addr = addr_in;
@@ -61,7 +62,7 @@ module tb_icache;
   endtask
 
   initial begin
-    $dumpfile("waves.vcd");
+    $dumpfile("sim/waves.vcd");
     $dumpvars(0, tb_icache);
     
     reset();
@@ -87,6 +88,12 @@ module tb_icache;
     trans(32'd160);
     trans(32'd144);
     trans(32'd8);
+    trans(32'd8);
+    trans(32'd12);
+    trans(32'd12);
+    trans(32'd12);
+    trans(32'd16);
+    trans(32'd20);
 
     #20;
     $finish;
