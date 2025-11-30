@@ -243,7 +243,136 @@ module tb_fetch;
         $display("[%0t] CORRECT INST: exp=0x48 final_pc/final_inst=0x%08h", $time, final_pc);
     end
     
+    trans(0, 0, 0, 0, 0, 0, 0, 0, 0, 0, '0, '0, '0, '0);
+    trans(0, 0, 0, 0, 0, 0, 0, 0, 0, 0, '0, '0, '0, '0);
+    trans(0, 0, 0, 0, 0, 0, 0, 0, 0, 0, '0, '0, '0, '0);
+    trans(0, 0, 0, 0, 0, 0, 0, 0, 0, 0, '0, '0, '0, '0);
+
+    $display("[%0t] JAL then x", $time);
     //repeated hazards (should ignore everything except first) test first hazard on send cycle and wait cycle
+    // jal then jal (hit)
+    trans(1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 32'd68, '0, 32'd72, '0);
+    $display("[%0t] WRONG INST: exp=0x44 final_pc=0x%08h final_inst = 0x%08h", $time, final_pc, final_inst);
+
+    //jal then jal (miss)
+    trans(1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 32'd4, '0, 32'd72, '0);
+    $display("[%0t] WRONG INST: exp=0x4 final_pc=0x%08h final_inst = 0x%08h", $time, final_pc, final_inst);
+
+    trans(0, 0, 0, 0, 0, 0, 0, 0, 0, 0, '0, '0, '0, '0);
+    trans(0, 0, 0, 0, 0, 0, 0, 0, 0, 0, '0, '0, '0, '0);
+
+    //jal then branch (hit)
+    trans(1, 0, 0, 0, 0, 0, 1, 0, 0, 0, 32'd8, '0, '0, 32'd72);
+    $display("[%0t] WRONG INST: exp=0x8 final_pc=0x%08h final_inst = 0x%08h", $time, final_pc, final_inst);
+
+    //jal then branch (miss)
+    trans(1, 0, 0, 0, 0, 0, 1, 0, 0, 0, 32'd68, '0, '0, 32'd8);
+    $display("[%0t] WRONG INST: exp=0x44 final_pc=0x%08h final_inst = 0x%08h", $time, final_pc, final_inst);
+
+    //jal then stall (hit)
+    trans(1, 0, 0, 0, 0, 0, 0, 1, 0, 0, 32'd72, '0, '0, '0);
+    $display("[%0t] WRONG INST: exp=0x48 final_pc=0x%08h final_inst = 0x%08h", $time, final_pc, final_inst);
+
+    //jal then stall (miss)
+    trans(1, 0, 0, 0, 0, 0, 0, 1, 0, 0, 32'd12, '0, '0, '0);
+    $display("[%0t] WRONG INST: exp=0xc final_pc=0x%08h final_inst = 0x%08h", $time, final_pc, final_inst);
+
+    trans(1, 0, 0, 0, 0, 0, 0, 1, 0, 0, 32'd68, '0, '0, '0);
+    $display("[%0t] WRONG INST: exp=0x44 final_pc=0x%08h final_inst = 0x%08h", $time, final_pc, final_inst);
+
+    trans(0, 0, 0, 0, 0, 0, 0, 0, 0, 0, '0, '0, '0, '0);
+    trans(0, 0, 0, 0, 0, 0, 0, 0, 0, 0, '0, '0, '0, '0);    
+
+    $display("[%0t] BRANCH then x", $time);
+    //branch then jal (hit)
+    trans(0, 1, 0, 0, 0, 1, 0, 0, 0, 0, '0, 32'd68, 32'd72, '0);
+    $display("[%0t] WRONG INST: exp=0x44 final_pc=0x%08h final_inst = 0x%08h", $time, final_pc, final_inst);
+
+    //branch then jal (miss)
+    trans(0, 1, 0, 0, 0, 1, 0, 0, 0, 0, '0, 32'd4, 32'd72, '0);
+    $display("[%0t] WRONG INST: exp=0x4 final_pc=0x%08h final_inst = 0x%08h", $time, final_pc, final_inst);
+
+    //branch then branch (hit)
+    trans(0, 1, 0, 0, 0, 0, 1, 0, 0, 0, '0, 32'd8, '0, 32'd72);
+    $display("[%0t] WRONG INST: exp=0x8 final_pc=0x%08h final_inst = 0x%08h", $time, final_pc, final_inst);
+    //branch then branch (miss)
+    trans(0, 1, 0, 0, 0, 0, 1, 0, 0, 0, '0, 32'd68, '0, 32'd8);
+    $display("[%0t] WRONG INST: exp=0x44 final_pc=0x%08h final_inst = 0x%08h", $time, final_pc, final_inst);
+    //branch then stall (hit)
+    trans(0, 1, 0, 0, 0, 0, 0, 1, 0, 0, '0, 32'd72, '0, '0);
+    $display("[%0t] WRONG INST: exp=0x48 final_pc=0x%08h final_inst = 0x%08h", $time, final_pc, final_inst);
+    //branch then stall (miss)
+    trans(0, 1, 0, 0, 0, 0, 0, 1, 0, 0, '0, 32'd12, '0, '0);
+    $display("[%0t] WRONG INST: exp=0xc final_pc=0x%08h final_inst = 0x%08h", $time, final_pc, final_inst);
+
+    trans(1, 0, 0, 0, 0, 0, 0, 0, 0, 0, '0, 32'd64, '0, '0);
+    trans(0, 0, 0, 0, 0, 0, 0, 0, 0, 0, '0, '0, '0, '0);
+    trans(0, 0, 0, 0, 0, 0, 0, 0, 0, 0, '0, '0, '0, '0); 
+
+    $display("[%0t] STALL then x", $time);
+    //stall first
+    //stall then jal (hit)
+    trans(0, 0, 1, 0, 0, 1, 0, 0, 0, 0, '0, '0, 32'd72, '0);
+    $display("[%0t] WRONG INST: exp=0x48 final_pc=0x%08h final_inst = 0x%08h", $time, final_pc, final_inst);
+
+    //stall then jal (miss)
+    trans(0, 0, 1, 0, 0, 1, 0, 0, 0, 0, '0, '0, 32'd4, '0);
+    $display("[%0t] WRONG INST: exp=0x4 final_pc=0x%08h final_inst = 0x%08h", $time, final_pc, final_inst);
+
+    //stall then branch (hit)
+    trans(0, 0, 1, 0, 0, 0, 1, 0, 0, 0, '0, '0, '0, 32'd4);
+    $display("[%0t] WRONG INST: exp=0x4 final_pc=0x%08h final_inst = 0x%08h", $time, final_pc, final_inst);
+    //stall then branch (miss)
+    trans(0, 0, 1, 0, 0, 0, 1, 0, 0, 0, '0, '0, '0, 32'd68);
+    $display("[%0t] WRONG INST: exp=0x44 final_pc=0x%08h final_inst = 0x%08h", $time, final_pc, final_inst);
+    //stall then stall 
+    trans(0, 0, 1, 0, 0, 0, 0, 1, 0, 0, '0, '0, '0, '0);
+    $display("[%0t] REPORT: final_pc=0x%08h final_inst = 0x%08h", $time, final_pc, final_inst);
+    //stall then stall (miss)
+    trans(0, 0, 1, 0, 0, 0, 0, 1, 0, 0, '0, '0, '0, '0);
+    $display("[%0t] REPORT: final_pc=0x%08h final_inst = 0x%08h", $time, final_pc, final_inst);
+
+
+    //works up to here need to test deep hazard repeats (only need 1)
+    //test miss case first (WAIT_ACK) state
+    @(posedge clk);
+    //no hazard so pc + 4 instruction request
+    @(posedge clk);
+    //first wait cycle
+    jal = 1'b1;
+    j_target = 32'd4; //miss
+
+    @(posedge clk); //WAIT_ACK state to recieve stale instructions and send req from earlier cycle
+    jal = 1'b1;
+    j_target = 32'd68; //should be ignored
+
+    do begin
+      @(posedge clk);
+      jal = 0;
+      branch = 0;
+      stall = 0;
+      j_target = '0;
+      b_target = '0;
+    end while (final_inst == 32'h00000013);
+    $display("[%0t] WRONG INST: exp=0x4 final_pc=0x%08h final_inst = 0x%08h", $time, final_pc, final_inst);
+
+    @(posedge clk);
+    branch = 1'b1;
+    b_target = 32'd4; //hit
+
+    @(posedge clk); //SEND_O cycle
+    jal = 1'b1;
+    j_target = 32'd68; //should be ignored
+
+    do begin
+      @(posedge clk);
+      jal = 0;
+      branch = 0;
+      stall = 0;
+      j_target = '0;
+      b_target = '0;
+    end while (final_inst == 32'h00000013);
+    $display("[%0t] WRONG INST: exp=0x4 final_pc=0x%08h final_inst = 0x%08h", $time, final_pc, final_inst);
 
     #20;
     $finish;

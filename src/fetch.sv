@@ -60,36 +60,13 @@ module fetch (
           next_state = WAIT_O;
         end else if (stall) begin
           next_pc = pc;
+          next_finalI = finalI;
         end else begin //if stall, no instr requested from cache
           addr = pc + 4;
           addr_ready = 1'b1;
           next_state = WAIT;
         end
       end
-
-        //make hits 1 cycle, remove some of this
-        //if stall, then cache_ack will never go high since no request
-        /*
-        if (cache_ack && jal) begin //jal hit
-          next_pc = j_target;
-          next_finalI = inst;
-        end else if (cache_ack && branch) begin //branch hit
-          next_pc = b_target;
-          next_finalI = inst;
-        end else if (cache_ack) begin //PC + 4 hit
-          next_pc = pc + 4;
-          next_finalI = inst;
-        end else 
-
-        if (stall && !jal) begin //if stall, no cache requests, repeat SEND state
-          next_pc = pc;
-        end else if (jal | branch) begin //jal/branch misses
-          next_state = WAIT_O;
-        end else begin //normal misses
-          next_state = WAIT;
-        end
-      end
-      */
 
       //normal miss state, jal and branch override the instruction getting fetched. While waiting noop and same PC are latched for decode stage
       WAIT: begin

@@ -110,30 +110,6 @@ module icache (
       end
       default:;
     endcase
-    
-    //hit statemachine
-    case (hit)
-      REC: begin
-        if (send_pulse) begin
-          if (data[idx][58] && tag == data[idx][57:32]) begin //hit
-            next_hit = SEND;
-          end else begin //miss
-            next_wb = START_WB;
-            if (origin != tag || write == IDLE_WRITE) begin //if cache is not currently being rewritten in the correct frame, start rewriting
-              next_write = START_WRITE; //this needs to be a complete restart, complete restart 
-              next_origin = tag;
-            end
-          end
-        end
-      end
-      SEND: begin //need registered
-        next_hit = REC;
-        inst = data[reg_idx][31:0];
-        ack_hit = 1'b1;
-      end
-      default:;
-    endcase
-
 
     //cache rewrite statemachine
     case (write)
@@ -167,6 +143,30 @@ module icache (
         end
       end
       IDLE_WRITE: next_ct = 2'b00;
+      default:;
+    endcase
+
+    //hit statemachine gets prio for resetting ct
+    case (hit)
+      REC: begin
+        if (send_pulse) begin
+          if (data[idx][58] && tag == data[idx][57:32]) begin //hit
+            next_hit = SEND;
+          end else begin //miss
+            next_wb = START_WB;
+            if (origin != tag || write == IDLE_WRITE) begin //if cache is not currently being rewritten in the correct frame, start rewriting
+              next_write = START_WRITE; //this needs to be a complete restart, complete restart 
+              next_origin = tag;
+              next_ct = 2'b0;
+            end
+          end
+        end
+      end
+      SEND: begin //need registered
+        next_hit = REC;
+        inst = data[reg_idx][31:0];
+        ack_hit = 1'b1;
+      end
       default:;
     endcase
   end
