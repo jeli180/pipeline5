@@ -24,7 +24,7 @@ module decode (
   logic next_rtype, next_itype, next_load, next_store, next_branch, next_jal, next_jalr;
   logic [31:0] next_imm, next_finalI, next_finalpc;
   logic [4:0] next_reg1, next_reg2, next_regD;
-  logic [31:0] next_reg1val, next_reg2val;
+  //logic [31:0] next_reg1val, next_reg2val;
   logic [6:0] op;
   logic [31:0] nop;
 
@@ -44,8 +44,8 @@ module decode (
     next_reg1 = '0;
     next_reg2 = '0;
     next_regD = '0;
-    next_reg1val = '0;
-    next_reg2val = '0;
+    //next_reg1val = '0;
+    //next_reg2val = '0;
     next_finalI = inst;
     next_finalpc = pc;
     file_reg1 = '0;
@@ -67,8 +67,8 @@ module decode (
       next_reg1 = reg1;
       next_reg2 = reg2;
       next_regD = regD;
-      next_reg1val = reg1val;
-      next_reg2val = reg2val;
+      //next_reg1val = reg1val;
+      //next_reg2val = reg2val;
       next_finalI = finalI;
       next_finalpc = finalpc;
       file_reg1 = reg1;
@@ -84,8 +84,9 @@ module decode (
           //register file fetch
           file_reg1 = next_reg1;
           file_reg2 = next_reg2;
-          next_reg1val = file_val1;
-          next_reg2val = file_val2;
+          //=== COMB
+          //next_reg1val = file_val1; 
+          //next_reg2val = file_val2;
         end
         7'b0010011: begin //itype: imm, reg1, regD
           next_itype = 1;
@@ -94,7 +95,8 @@ module decode (
           next_imm = {{20{inst[31]}}, inst[31:20]};
           //register file fetch
           file_reg1 = next_reg1;
-          next_reg1val = file_val1;
+          //== COMB
+          //next_reg1val = file_val1;
         end
         7'b0000011: begin //load: imm, reg1, regD
           next_load = 1;
@@ -103,7 +105,8 @@ module decode (
           next_imm = {{20{inst[31]}}, inst[31:20]};
           //register file fetch
           file_reg1 = next_reg1;
-          next_reg1val = file_val1;
+          //== COMB
+          //next_reg1val = file_val1;
         end
         7'b0100011: begin //store: reg1, reg2, imm
           next_store = 1;
@@ -113,8 +116,9 @@ module decode (
           //register file fetch
           file_reg1 = next_reg1;
           file_reg2 = next_reg2;
-          next_reg1val = file_val1;
-          next_reg2val = file_val2;
+          //== COMB
+          //next_reg1val = file_val1;
+          //next_reg2val = file_val2;
         end
         7'b1100011: begin //branch: reg1, reg2, imm
           next_branch = 1;
@@ -124,8 +128,9 @@ module decode (
           //register file fetch
           file_reg1 = next_reg1;
           file_reg2 = next_reg2;
-          next_reg1val = file_val1;
-          next_reg2val = file_val2;
+          // == COMB
+          //next_reg1val = file_val1;
+          //next_reg2val = file_val2;
         end
         7'b1101111: begin //jal: imm, regD
           next_jal = 1;
@@ -139,7 +144,8 @@ module decode (
           next_imm = {{20{inst[31]}}, inst[31:20]};
           //register file fetch
           file_reg1 = next_reg1;
-          next_reg1val = file_val1;
+          // == COMB
+          //next_reg1val = file_val1;
         end
       endcase
     end
@@ -174,8 +180,8 @@ module decode (
       reg1 <= next_reg1;
       reg2 <= next_reg2;
       regD <= next_regD;
-      reg1val <= next_reg1val;
-      reg2val <= next_reg2val;
+      reg1val <= file_val1;
+      reg2val <= file_val2;
       finalI <= next_finalI;
       finalpc <= next_finalpc;
     end
