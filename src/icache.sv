@@ -150,7 +150,7 @@ module icache (
     case (hit)
       REC: begin
         if (send_pulse) begin
-          if (data[idx][58] && tag == data[idx][57:32]) begin //hit
+          if (data[idx][58] && tag == data[idx][57:32] && origin == tag) begin //hit
             next_hit = SEND;
           end else begin //miss
             next_wb = START_WB;
