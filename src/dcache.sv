@@ -182,7 +182,6 @@ module dcache (
           addr_evict = {tag[cur_set][!mru[cur_set]], cur_set, 2'b0};
           evict_data = data[cur_set][!mru[cur_set]];
         end
-
       end
     end 
   end   
