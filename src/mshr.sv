@@ -138,7 +138,7 @@ module mshr (
             next_way[i] = way[i+1];
             next_regD[i] = regD[i+1];
             next_addr[i] = addr[i+1];
-            next_store_data = store_data[i+1];
+            next_store_data[i] = store_data[i+1];
           end
           next_lw[NUM_REG] = 1'b0;
           next_valid[NUM_REG] = 1'b0;
@@ -148,7 +148,7 @@ module mshr (
           next_store_data[NUM_REG] = '0;
 
           //new input (assuming no overflow), replaces last filled since shift
-          if (load_valid && evict_valid) begin
+          if (load_valid && evict_valid && !valid[4]) begin
             //load goes first in queue
             next_lw[last_filled] = 1'b1;
             next_valid[last_filled] = 1'b1;
@@ -174,11 +174,12 @@ module mshr (
           end
 
           //next state logic
-          if (last_filled == 1'd1 && !load_valid && !evict_valid) next_state = IDLE;
+          if (last_filled == 3'd1 && !load_valid && !evict_valid) next_state = IDLE;
           else next_state = REQ;
+
         end else begin //still waiting for wishbone (no shifting)
           //new input from dcache
-          if (load_valid && evict_valid) begin
+          if (load_valid && evict_valid && !valid[3] && !valid[4]) begin
             //load goes first in queue
             next_lw[last_filled + 1] = 1'b1;
             next_valid[last_filled + 1] = 1'b1;
@@ -186,17 +187,17 @@ module mshr (
             next_regD[last_filled + 1] = regD_in;
             next_addr[last_filled + 1] = addr_load;
             //evict goes second
-            next_lw[last_filled + 2] = 1'b0; //technically don't need, all empty reg are reset to defaults
+            next_lw[last_filled + 2] = 1'b0; 
             next_valid[last_filled + 2] = 1'b1;
             next_addr[last_filled + 2] = addr_evict;
             next_store_data[last_filled + 2] = evict_data;
-          end else if (load_valid) begin
+          end else if (load_valid && !valid[4]) begin
             next_lw[last_filled + 1] = 1'b1;
             next_valid[last_filled + 1] = 1'b1;
             next_way[last_filled + 1] = load_way_in;
             next_regD[last_filled + 1] = regD_in;
             next_addr[last_filled + 1] = addr_load;
-          end else if (evict_valid) begin
+          end else if (evict_valid && !valid[4]) begin
             next_lw[last_filled + 1] = 1'b0; 
             next_valid[last_filled + 1] = 1'b1;
             next_addr[last_filled + 1] = addr_evict;
@@ -212,7 +213,7 @@ module mshr (
     if (rst) begin
       state <= IDLE;
       addr_out <= invalid;
-      data_out <= invalid;
+      data_out <= '0;
       regD_out <= '0;
       load_way_out <= 0;
       done_pulse <= 0;
