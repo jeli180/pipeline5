@@ -1,0 +1,81 @@
+[*]
+[*] GTKWave Analyzer v3.3.100 (w)1999-2019 BSI
+[*] Thu Dec 11 02:44:45 2025
+[*]
+[dumpfile] "C:\Users\jeliu\OneDrive\Desktop\pipeline5\sim\waves.vcd"
+[dumpfile_mtime] "Thu Dec 11 01:52:41 2025"
+[dumpfile_size] 49845
+[savefile] "C:\Users\jeliu\OneDrive\Desktop\pipeline5\sim\dcache_nb_save.gtkw"
+[timestart] 14430
+[size] 1440 829
+[pos] -35 -35
+*-14.000000 1758950 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1
+[treeopen] tb_dcacheNB.
+[sst_width] 197
+[signals_width] 182
+[sst_expanded] 1
+[sst_vpaned_height] 234
+@28
+tb_dcacheNB.clk
+tb_dcacheNB.rst
+tb_dcacheNB.send_pulse_in
+tb_dcacheNB.lw_in
+@24
+tb_dcacheNB.regD_in[4:0]
+@22
+tb_dcacheNB.addr_in[31:0]
+tb_dcacheNB.store_data_in[31:0]
+@28
+[color] 2
+tb_dcacheNB.passive_stall
+[color] 2
+tb_dcacheNB.load_done_stall
+[color] 2
+tb_dcacheNB.hit_ack
+[color] 2
+tb_dcacheNB.miss_send
+@24
+[color] 2
+tb_dcacheNB.regD_out[4:0]
+@22
+[color] 2
+tb_dcacheNB.load_data_out[31:0]
+@28
+tb_dcacheNB.load_valid
+tb_dcacheNB.evict_valid
+tb_dcacheNB.load_way_in
+@24
+tb_dcacheNB.mshr_regD_in[4:0]
+@22
+tb_dcacheNB.addr_load[31:0]
+tb_dcacheNB.addr_evict[31:0]
+tb_dcacheNB.evict_data[31:0]
+@28
+[color] 2
+tb_dcacheNB.mshr_full
+[color] 2
+tb_dcacheNB.mshr_done_pulse
+[color] 2
+tb_dcacheNB.load_way_out
+@24
+[color] 2
+tb_dcacheNB.mshr_regD_out[4:0]
+@22
+[color] 2
+tb_dcacheNB.mshr_addr_out[31:0]
+[color] 2
+tb_dcacheNB.mshr_data_out[31:0]
+[color] 2
+tb_dcacheNB.addr1[31:0]
+[color] 2
+tb_dcacheNB.addr2[31:0]
+[color] 2
+tb_dcacheNB.addr3[31:0]
+[color] 2
+tb_dcacheNB.addr4[31:0]
+@420
+mshr_DUT.state
+@29
+tb_dcacheNB.cache_DUT.addr_dep
+[pattern_trace] 1
+[pattern_trace] 0

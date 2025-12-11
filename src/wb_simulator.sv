@@ -49,9 +49,9 @@ module wb_simulator #(
                 if (counter == 0) begin
                     pending <= 0;
                     busy    <= 0;
+                    valid <= 1; // one-cycle pulse
                     if (!we) begin
                         rdata <= mem[addr_reg[31:2]];
-                        valid <= 1; // one-cycle pulse
                     end
                 end else begin
                     counter <= counter - 1;

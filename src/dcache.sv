@@ -148,20 +148,21 @@ module dcache (
           next_dirty[cur_set][0] = 1'b1;
           next_tag[cur_set][0] = cur_tag;
           next_mru[cur_set] = 1'b0;
+          hit_ack = 1'b1;
         end else if (!lw && (!dirty[cur_set][1] || !valid[cur_set][1])) begin //check way1
           next_data[cur_set][1] = store_data;
           next_valid[cur_set][1] = 1'b1;
           next_dirty[cur_set][1] = 1'b1;
           next_tag[cur_set][1] = cur_tag;
           next_mru[cur_set] = 1'b1;
+          hit_ack = 1'b1;
         end else begin
           full_stall = 1'b1;
         end
-      end else begin
-
+      end else begin //send stuff to MSHR
         //make CPU store dependent register
         if (lw) begin
-          miss_send = 1'b1; //to CPU to store current reg for dependency logic
+          miss_send = 1'b1; //tells CPU to continue, if current is a lw CPU stores current reg for dependency logic
           load_valid = 1'b1; //pulse
           load_way_in = !mru[cur_set];
           addr_load = addr_in;
@@ -169,6 +170,7 @@ module dcache (
           next_dirty[cur_set][!mru[cur_set]] = 1'b0;
           next_valid[cur_set][!mru[cur_set]] = 1'b0; //prevent loading potentially stale data or storing to line that will be replaced
         end else begin //store miss automatically replaces line
+          hit_ack = 1'b1;
           next_data[cur_set][!mru[cur_set]] = store_data;
           next_tag[cur_set][!mru[cur_set]] = cur_tag;
           next_valid[cur_set][!mru[cur_set]] = 1'b1;

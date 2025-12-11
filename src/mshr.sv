@@ -117,6 +117,32 @@ module mshr (
         next_state = WAIT;
         req = 1'b1;
         //other wb inputs are defaulted to first mshr values
+
+        //new input logic
+        if (load_valid && evict_valid && !valid[3] && !valid[4]) begin
+            //load goes first in queue
+            next_lw[last_filled + 1] = 1'b1;
+            next_valid[last_filled + 1] = 1'b1;
+            next_way[last_filled + 1] = load_way_in;
+            next_regD[last_filled + 1] = regD_in;
+            next_addr[last_filled + 1] = addr_load;
+            //evict goes second
+            next_lw[last_filled + 2] = 1'b0; 
+            next_valid[last_filled + 2] = 1'b1;
+            next_addr[last_filled + 2] = addr_evict;
+            next_store_data[last_filled + 2] = evict_data;
+          end else if (load_valid && !valid[4]) begin
+            next_lw[last_filled + 1] = 1'b1;
+            next_valid[last_filled + 1] = 1'b1;
+            next_way[last_filled + 1] = load_way_in;
+            next_regD[last_filled + 1] = regD_in;
+            next_addr[last_filled + 1] = addr_load;
+          end else if (evict_valid && !valid[4]) begin
+            next_lw[last_filled + 1] = 1'b0; 
+            next_valid[last_filled + 1] = 1'b1;
+            next_addr[last_filled + 1] = addr_evict;
+            next_store_data[last_filled + 1] = evict_data;
+          end
       end
 
       WAIT: begin
@@ -176,7 +202,6 @@ module mshr (
           //next state logic
           if (last_filled == 3'd1 && !load_valid && !evict_valid) next_state = IDLE;
           else next_state = REQ;
-
         end else begin //still waiting for wishbone (no shifting)
           //new input from dcache
           if (load_valid && evict_valid && !valid[3] && !valid[4]) begin
@@ -243,8 +268,16 @@ module mshr (
     end
   end
 
+  //check that dcache never sends when full high
+  always_ff @(posedge clk) begin
+    if (!rst) begin
+      assert ( !( (last_filled >= 3) && (load_valid || evict_valid)) )
+      else $fatal(1, "Dcache sending entry when full should be high", last_filled);
+    end
+  end
+
   wb_simulator #(
-    .MEM_FILE("instruction_memory.memh"),
+    .MEM_FILE("data.memh"),
     .DEPTH(1024),
     .LATENCY(3)
   ) dcache_wb (
