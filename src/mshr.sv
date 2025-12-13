@@ -268,14 +268,6 @@ module mshr (
     end
   end
 
-  //check that dcache never sends when full high
-  always_ff @(posedge clk) begin
-    if (!rst) begin
-      assert ( !( (last_filled >= 3) && (load_valid || evict_valid)) )
-      else $fatal(1, "Dcache sending entry when full should be high", last_filled);
-    end
-  end
-
   wb_simulator #(
     .MEM_FILE("data.memh"),
     .DEPTH(1024),

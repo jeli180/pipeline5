@@ -21,7 +21,10 @@ module execute (
   output logic [31:0] result, //either mem addr for lw/sw, rd val for rtype/itype/jal/jalr
   output logic [31:0] store_data,
   output logic branch_cond,
-  output logic [4:0] regDF
+  output logic [4:0] regDF,
+
+  //mshr dependency
+  output logic [4:0] mshr_reg1, mshr_reg2
 );
   //don't need to send rtype/itype flags to mem, branch flag covered by branch_cond
 
@@ -33,6 +36,9 @@ module execute (
   logic next_branch_cond; //calculated
   logic [4:0] next_regDF; //pass through
   logic [31:0] operator; //rs2 for rtype, imm for itype
+
+  assign mshr_reg1 = reg1;
+  assign mshr_reg2 = reg2;
 
   always_comb begin
     final_reg1val = reg1val;
