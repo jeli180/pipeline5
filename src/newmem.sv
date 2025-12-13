@@ -48,7 +48,7 @@ module newmem (
 
   logic next_regwriteF, next_jalF;
   logic [4:0] next_regDF;
-  logic [31:0] next_targetF, regdataF;
+  logic [31:0] next_targetF, next_regdataF;
 
   assign last_filled = mshr_valid[4] ? 3'd4 : mshr_valid[3] ? 3'd3 : mshr_valid[2] ? 3'd2 : mshr_valid[1] ? 3'd1 : 3'd0;
   assign mshr_empty = !mshr_valid[1] && !mshr_valid[2] && !mshr_valid[3] && !mshr_valid[4];
@@ -78,6 +78,8 @@ module newmem (
     
     branch_flush = 1'b0;
     b_target = 32'hDEAD_BEEF;
+
+    dep_stall = 1'b0;
 
     mmio_req = 0;
     mmio_lw = 0;
@@ -123,8 +125,16 @@ module newmem (
       next_targetF = 1'b0;
       next_regdataF = mmio_data_read;
 
-    end else if (reg1_ex == mshr_reg[1] || reg1_ex == mshr_reg[2] || reg1_ex == mshr_reg[3] || reg1_ex == mshr_reg[4]
-    || reg2_ex == mshr_reg[1] || reg2_ex == mshr_reg[2] || reg2_ex == mshr_reg[3] || reg2_ex == mshr_reg[4]) begin
+    end else if (
+       (reg1_ex == mshr_reg[1] && mshr_valid[1]) 
+    || (reg1_ex == mshr_reg[2] && mshr_valid[2])
+    || (reg1_ex == mshr_reg[3] && mshr_valid[3])
+    || (reg1_ex == mshr_reg[4] && mshr_valid[4])
+    || (reg2_ex == mshr_reg[1] && mshr_valid[1])
+    || (reg2_ex == mshr_reg[2] && mshr_valid[2])
+    || (reg2_ex == mshr_reg[3] && mshr_valid[3])
+    || (reg2_ex == mshr_reg[4] && mshr_valid[4])
+    ) begin
       
       dep_stall = 1'b1; //stall pipeline
 
@@ -157,9 +167,11 @@ module newmem (
           regD_val_ex = mmio_data_read;
           regwrite_ex = 1'b1;
         
-        end else if (miss_send) begin //if load miss, dep_stall will be raised since it enters mshr_reg on next cycle
-          next_mshr_reg[last_filled + 1] = regD; //mshr_reg never overflows since actual mshr guards against overflow with stall
-          next_mshr_valid[last_filled + 1] = 1'b1;
+        end else if (miss_store) begin //if load miss, dep_stall will be raised since it enters mshr_reg on next cycle
+          if (last_filled < MSHR_REG) begin //should never be wrong
+            next_mshr_reg[last_filled + 1] = regD; //mshr_reg never overflows since actual mshr guards against overflow with stall
+            next_mshr_valid[last_filled + 1] = 1'b1;
+          end
 
           if (reg1_ex == regD || reg2_ex == regD) dep_stall = 1'b1;
 
@@ -186,21 +198,21 @@ module newmem (
         end
       end
 
-    end else (jal || jalr || branch_cond || regwrite) begin
+    end else if (jal || jalr || branch_cond || regwrite) begin
       
       //all regwrite instructions will have regdata, can send back
       //stalling for hazards doesn't affect since the send back regdata won't be used until stall lifted
       if (regwrite) begin
         regD_ex = regD;
         regD_val_ex = result;
-        regwrite = 1'b1;
+        regwrite_ex = 1'b1;
       end
 
       //wait for mshr empty, at which cpu stops stalling when last out mshr instruction in wb
       if (jal || jalr || branch_cond) begin
         if (!mshr_empty) begin
           dep_stall = 1'b1;
-          
+
           next_regwriteF = 0;
           next_jalF = 0;
           next_regDF = '0;
