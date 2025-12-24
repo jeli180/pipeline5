@@ -9,7 +9,7 @@ module writeback (
   output logic regwrite_ex,
 
   //from mem
-  input logic regwrite, jalF,
+  input logic regwrite, jal,
   input logic [4:0] regD,
   input logic [31:0] target, regdata,
 
@@ -21,12 +21,12 @@ module writeback (
 
   //regfile interface
   assign write_data = regdata;
-  assign reg_num = regD;
+  assign reg_nfinishum = regD;
   assign wen = regwrite;
 
   //jal_flush gen
-  assign jal_flush = jalF;
-  assign j_target = target;
+  assign jal_flush = jal;
+  assign j_target = jal ? target : '0;
 
   //register back to ex
   assign regD_ex = regD;

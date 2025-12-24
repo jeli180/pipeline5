@@ -86,13 +86,6 @@ module tb_dcacheNB;
     .full(mshr_full)
   );
 
-   /*
-  TESTBENCH FIXES
-  - check if switched ack/miss works
-  - testbench sends under passive stall
-  - evicted address sometimes dont enter mshr correctly
-  */
-
   //DRIVE CPU INPUTS: regD_in, addr_in, store_data_in, send_pulse_in, lw_in
 
   initial clk = 0;
