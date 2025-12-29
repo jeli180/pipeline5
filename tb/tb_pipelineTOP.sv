@@ -362,15 +362,17 @@ module tb_pipelineTOP;
 
     //wait until regD is 31 (wont use in code until testbench ends)
     //all testcases done in software and analyze in waveforms
-
+    
     do begin
       @(posedge clk);
-      $display("Current regD: %d", file_regD);
-    end while (file_regD != 5'd31 && file_wen);
+      $display("Current regD: %d | write data: %d | store_ex: %d | load_ex: %d", file_regD, file_write_data, store_ex, load_ex);
+    end while (!(file_regD == 5'd31 && file_wen));
 
     for (int i = 1; i < 24; i++) begin
-      @(posedge clk);
-      #1;
+      do begin
+        @(posedge clk);
+        #1;
+      end while (file_regD == 5'd0);
       if (file_write_data != i) $display("ERROR | reg: %d | write data: %d", file_regD, file_write_data);
       else $display("PASS | reg: %d | write data: %d", file_regD, file_write_data);
     end

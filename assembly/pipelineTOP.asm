@@ -92,7 +92,7 @@ jal1:
 
 addi x24, x0, 18
 addi x25, x0, 19
-addi x26, x0, 20
+addi x26, x0, 20 
 addi x27, x0, 21
 addi x28, x0, 24 # wrong to test reg dep
 addi x29, x0, 101

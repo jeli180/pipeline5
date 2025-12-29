@@ -21,7 +21,7 @@ module writeback (
 
   //regfile interface
   assign write_data = regdata;
-  assign reg_nfinishum = regD;
+  assign reg_num = regD;
   assign wen = regwrite;
 
   //jal_flush gen

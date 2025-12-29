@@ -1,0 +1,130 @@
+[*]
+[*] GTKWave Analyzer v3.3.100 (w)1999-2019 BSI
+[*] Sun Dec 28 04:32:09 2025
+[*]
+[dumpfile] "C:\Users\jeliu\OneDrive\Desktop\pipeline5\sim\waves.vcd"
+[dumpfile_mtime] "Sat Dec 27 05:08:56 2025"
+[dumpfile_size] 348116
+[savefile] "C:\Users\jeliu\OneDrive\Desktop\pipeline5\sim\pipeline_top_v2.gtkw"
+[timestart] 2667000
+[size] 1440 829
+[pos] -87 -87
+*-15.000000 2 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1
+[sst_width] 197
+[signals_width] 206
+[sst_expanded] 1
+[sst_vpaned_height] 60
+@28
+tb_pipelineTOP.clk
+tb_pipelineTOP.rst
+tb_pipelineTOP.jal_flush
+tb_pipelineTOP.branch_flush
+tb_pipelineTOP.stall
+@22
+tb_pipelineTOP.j_target[31:0]
+tb_pipelineTOP.b_target[31:0]
+@28
+tb_pipelineTOP.icache_req
+@22
+tb_pipelineTOP.icache_addr[31:0]
+@28
+tb_pipelineTOP.icache_ack
+@22
+tb_pipelineTOP.icache_inst[31:0]
+tb_pipelineTOP.inst_fe[31:0]
+tb_pipelineTOP.pc_fe[31:0]
+@28
+[color] 2
+tb_pipelineTOP.rtype_de
+[color] 2
+tb_pipelineTOP.itype_de
+[color] 2
+tb_pipelineTOP.store_de
+[color] 2
+tb_pipelineTOP.load_de
+[color] 2
+tb_pipelineTOP.branch_de
+[color] 2
+tb_pipelineTOP.jal_de
+[color] 2
+tb_pipelineTOP.jalr_de
+@22
+[color] 2
+tb_pipelineTOP.reg1_de[4:0]
+[color] 2
+tb_pipelineTOP.reg1val_de[31:0]
+[color] 2
+tb_pipelineTOP.reg2_de[4:0]
+[color] 2
+tb_pipelineTOP.reg2val_de[31:0]
+[color] 2
+tb_pipelineTOP.regD_de[4:0]
+[color] 2
+tb_pipelineTOP.imm_de[31:0]
+[color] 2
+tb_pipelineTOP.inst_de[31:0]
+[color] 2
+tb_pipelineTOP.pc_de[31:0]
+@28
+tb_pipelineTOP.regwrite_ex
+tb_pipelineTOP.branch_cond_ex
+tb_pipelineTOP.load_ex
+tb_pipelineTOP.store_ex
+tb_pipelineTOP.jal_ex
+tb_pipelineTOP.jalr_ex
+@22
+tb_pipelineTOP.regD_back_mem[4:0]
+tb_pipelineTOP.regD_back_wb[4:0]
+tb_pipelineTOP.regDval_back_mem[31:0]
+tb_pipelineTOP.regDval_back_wb[31:0]
+@28
+tb_pipelineTOP.regwrite_back_mem
+tb_pipelineTOP.regwrite_back_wb
+@22
+tb_pipelineTOP.target_ex[31:0]
+tb_pipelineTOP.result_ex[31:0]
+tb_pipelineTOP.store_data_ex[31:0]
+@28
+[color] 2
+tb_pipelineTOP.mmio_req
+[color] 2
+tb_pipelineTOP.mmio_lw
+@22
+[color] 2
+tb_pipelineTOP.mmio_regD_in[4:0]
+[color] 2
+tb_pipelineTOP.mmio_addr[31:0]
+[color] 2
+tb_pipelineTOP.mmio_write_data[31:0]
+@28
+[color] 2
+tb_pipelineTOP.mmio_hit
+[color] 2
+tb_pipelineTOP.mmio_miss
+@22
+[color] 2
+tb_pipelineTOP.mmio_regD_out[4:0]
+[color] 2
+tb_pipelineTOP.mmio_read_data[31:0]
+@29
+[color] 2
+tb_pipelineTOP.load_done_stall
+@28
+[color] 2
+tb_pipelineTOP.passive_stall
+tb_pipelineTOP.regwrite_me
+tb_pipelineTOP.jal_me
+@22
+tb_pipelineTOP.regD_me[4:0]
+tb_pipelineTOP.regdata_me[31:0]
+tb_pipelineTOP.target_me[31:0]
+@28
+[color] 2
+tb_pipelineTOP.file_wen
+@22
+[color] 2
+tb_pipelineTOP.file_regD[4:0]
+[color] 2
+tb_pipelineTOP.file_write_data[31:0]
+[pattern_trace] 1
+[pattern_trace] 0

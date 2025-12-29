@@ -76,22 +76,9 @@ module icache (
     addr_1 = '0;
     addr_2 = '0;
     addr_3 = '0;
-    next_data[0] = data[0];
-    next_data[1] = data[1];
-    next_data[2] = data[2];
-    next_data[3] = data[3];
-    next_data[4] = data[4];
-    next_data[5] = data[5];
-    next_data[6] = data[6];
-    next_data[7] = data[7];
-    next_data[8] = data[8];
-    next_data[9] = data[9];
-    next_data[10] = data[10];
-    next_data[11] = data[11];
-    next_data[12] = data[12];
-    next_data[13] = data[13];
-    next_data[14] = data[14];
-    next_data[15] = data[15];
+    for (int i = 0; i < 16; i++) begin
+      next_data[i] = data[i];
+    end
 
     next_hit = hit;
 
@@ -180,22 +167,9 @@ module icache (
       ct <= '0;
       addr_solo <= '0;
       reg_idx <= 4'b0;
-      data[0] <= '0;
-      data[1] <= '0;
-      data[2] <= '0;
-      data[3] <= '0;
-      data[4] <= '0;
-      data[5] <= '0;
-      data[6] <= '0;
-      data[7] <= '0;
-      data[8] <= '0;
-      data[9] <= '0;
-      data[10] <= '0;
-      data[11] <= '0;
-      data[12] <= '0;
-      data[13] <= '0;
-      data[14] <= '0;
-      data[15] <= '0;
+      for (int i = 0; i < 16; i++) begin
+        data[i] <= '0;
+      end
     end else begin
       reg_idx <= next_idx;
       hit <= next_hit;
@@ -204,22 +178,9 @@ module icache (
       wb <= next_wb;
       ct <= next_ct;
       addr_solo <= next_addr_solo;
-      data[0] = next_data[0];
-      data[1] = next_data[1];
-      data[2] = next_data[2];
-      data[3] = next_data[3];
-      data[4] = next_data[4];
-      data[5] = next_data[5];
-      data[6] = next_data[6];
-      data[7] = next_data[7];
-      data[8] = next_data[8];
-      data[9] = next_data[9];
-      data[10] = next_data[10];
-      data[11] = next_data[11];
-      data[12] = next_data[12];
-      data[13] = next_data[13];
-      data[14] = next_data[14];
-      data[15] = next_data[15];
+      for (int i = 0; i < 16; i++) begin
+        data[i] <= next_data[i];
+      end
     end
   end
 

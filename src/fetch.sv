@@ -96,15 +96,7 @@ module fetch (
       SEND_O: begin
         addr_ready = 1'b1;
         addr = target;
-
-        //make hits 1 cycle, so remove
-        if (cache_ack) begin
-          next_finalI = inst;
-          next_pc = target;
-          next_state = SEND;
-        end else begin
-          next_state = WAIT_O; //waits only for cache data, has prio over any hazard signals
-        end
+        next_state = WAIT_O; //waits only for cache data, has prio over any hazard signals
       end
 
       //set instr to nop, pc same while waiting
