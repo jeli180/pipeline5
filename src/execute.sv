@@ -63,9 +63,12 @@ module execute (
       next_stallreg = stall; //used for negedge detection of stall 
     end
     //on negedge stall, only dependency is lw regD
-    if (stallreg && !stall && regwrite_mem) begin //negedge stall, highest prio, directly after stall
-      if (regD_mem != 5'b0 && regD_mem == reg1) final_reg1val = regD_val_mem;
-      if (regD_mem != 5'b0 && regD_mem == reg2) final_reg2val = regD_val_mem;
+    if (stallreg && !stall && regwrite_mem && regD_mem != 5'b0) begin //highest prio, directly after stall
+      if (regD_mem == reg1) final_reg1val = regD_val_mem;
+      if (regD_mem == reg2) final_reg2val = regD_val_mem;
+    end else if (stallreg && !stall && regwrite_wb && regD_wb != 5'b0) begin //1.17 change
+      if (regD_wb == reg1) final_reg1val = regD_val_wb;
+      if (regD_wb == reg2) final_reg2val = regD_val_wb; 
     end else if ((regD_mem == reg1 || regD_mem == reg2) && regwrite_mem && regD_mem != 5'b0) begin //does not interfere with stall logic since if stall, outputs are overriden below
       if (regD_mem == reg1) final_reg1val = regD_val_mem;
       if (regD_mem == reg2) final_reg2val = regD_val_mem;

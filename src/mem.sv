@@ -194,8 +194,10 @@ module mem (
           //all regwrite instructions will have regdata, can send back
           //stalling for hazards doesn't affect since the send back regdata won't be used until stall lifted
           if (regwrite) begin
-            regD_ex = load_stall_store ? regDF: regD; //CHANGE
-            regD_val_ex = load_stall_store ? regdataF: result; //CHANGE
+            //regD_ex = load_stall_store ? regDF: regD; | 1.17
+            //regD_val_ex = load_stall_store ? regdataF: result; | 1.17
+            regD_ex = regD;
+            regD_val_ex = result;
             regwrite_ex = 1'b1;
           end
 
