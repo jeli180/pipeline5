@@ -57,6 +57,7 @@ module mem (
   logic next_regwriteF, next_jalF;
   logic [4:0] next_regDF;
   logic [31:0] next_targetF, next_regdataF;
+  logic load_stall_store, next_load_stall_store;
 
   assign last_filled = mshr_valid[4] ? 3'd4 : mshr_valid[3] ? 3'd3 : mshr_valid[2] ? 3'd2 : mshr_valid[1] ? 3'd1 : 3'd0;
   assign mshr_empty = !mshr_valid[1] && !mshr_valid[2] && !mshr_valid[3] && !mshr_valid[4];
@@ -106,6 +107,8 @@ module mem (
     regD_ex = '0;
     regD_val_ex = '0;
     regwrite_ex = 0;
+
+    next_load_stall_store = load_done_stall;
 
     next_state = state;
 
@@ -191,8 +194,8 @@ module mem (
           //all regwrite instructions will have regdata, can send back
           //stalling for hazards doesn't affect since the send back regdata won't be used until stall lifted
           if (regwrite) begin
-            regD_ex = regD;
-            regD_val_ex = result;
+            regD_ex = load_stall_store ? regDF: regD; //CHANGE
+            regD_val_ex = load_stall_store ? regdataF: result; //CHANGE
             regwrite_ex = 1'b1;
           end
 
@@ -318,6 +321,7 @@ module mem (
       regDF <= '0;
       targetF <= '0;
       regdataF <= '0;
+      load_stall_store <= 0;
 
       state <= NORMAL;
     end else begin
@@ -331,6 +335,7 @@ module mem (
       regDF <= next_regDF;
       targetF <= next_targetF;
       regdataF <= next_regdataF;
+      load_stall_store <= next_load_stall_store;
 
       state <= next_state;
     end

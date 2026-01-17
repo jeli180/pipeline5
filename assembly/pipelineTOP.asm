@@ -32,7 +32,7 @@ addi x11, x0, -24
 srai x11, x11, 2
 sltiu x12, x11, 32
 addi x12, x12, 12
-slti x13, x11, x0
+slti x13, x11, 0
 addi x13, x13, 12
 addi x15, x0, -24
 sra x15, x15, x2
@@ -71,18 +71,18 @@ addi x26, x0, 16
 addi x27, x0, 17
 
 addi x20, x0, 4
-addi x21, x0, 68 # change
-addi x22, x0, 132 # change
+addi x21, x0, 68 
+addi x22, x0, 132
 
 #hit
 sw x26, 4(x0)
 lw x16, 4(x0)
 
 #miss, basic mshr test case
-sw x27, 0(x20)
-sw x26, 0(x21)
-sw x26, 0(x22)
-lw x17, 0(x20)
+sw x27, 4(x0)
+sw x26, 262(x0)
+sw x26, 516(x0)
+lw x17, 4(x0)
 jal x25, jal1
 
 jal1:
@@ -103,17 +103,18 @@ sw x26, 8(x0)
 sw x27, 12(x0)
 sw x28, 16(x0)
 
-sw x29, 64(x0)
-sw x29, 68(x0)
-sw x29, 72(x0)
-sw x29, 76(x0)
-sw x29, 80(x0)
-
-sw x29, 128(x0)
-sw x29, 132(x0)
-sw x29, 136(x0)
-sw x29, 140(x0)
-sw x29, 144(x0)
+# change to second level 5 cons starting at 256
+sw x29, 256(x0)
+sw x29, 262(x0)
+sw x29, 268(x0)
+sw x29, 274(x0)
+sw x29, 280(x0)
+# change to third level 
+sw x29, 512(x0)
+sw x29, 518(x0)
+sw x29, 524(x0)
+sw x29, 530(x0)
+sw x29, 536(x0)
 
 #should be 5 load misses
 lw x18, 0(x0)
@@ -125,8 +126,8 @@ lw x22, 16(x0)
 addi x22, x22, -2 #correct wrong x22 val from cache
 
 addi x29, x0, 23
-sw x29, 64(x0)
-lw x23, 64(x0)
+sw x29, 262(x0)
+lw x23, 262(x0)
 
 beq x0, x0, pass2
 error2:
