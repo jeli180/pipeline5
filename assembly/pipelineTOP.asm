@@ -71,12 +71,12 @@ addi x26, x0, 16
 addi x27, x0, 17
 
 addi x20, x0, 4
-addi x21, x0, 68
-addi x22, x0, 132
+addi x21, x0, 68 # change
+addi x22, x0, 132 # change
 
 #hit
-sw x26, 0(x20)
-lw x16, 0(x20)
+sw x26, 4(x0)
+lw x16, 4(x0)
 
 #miss, basic mshr test case
 sw x27, 0(x20)
