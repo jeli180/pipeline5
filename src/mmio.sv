@@ -32,7 +32,7 @@ module mmio (
   //outputs to dcache 
   assign ca_req = addr > 32'd8 ? req : 1'b0;
   assign ca_lw = addr > 32'd8 ? lw : 1'b0;
-  assign ca_regD_in = addr > 32'd8 ? ca_regD_in : '0;
+  assign ca_regD_in = addr > 32'd8 ? regD_in : '0;
   assign ca_addr_in = addr > 32'd8 ? addr : '0;
   assign ca_write_data = addr > 32'd8 ? data_write : '0;
 
