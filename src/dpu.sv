@@ -290,19 +290,16 @@ module dpu (
       POLL_INT: if (!interrupt) next_stateC = COORD;
       COORD: begin
         //read from 72, 73, 74 to get coords, store the coords
+        //if store high 4 bits on, shapes are already drawn, waiting for done signal from user
         if (!if_busy && stateI == IDLE_I) begin
           if (ct > 3) begin
             next_ct = '0;
             if (touchX > 480) begin
-              next_stateC = SEND;
+              next_stateC = &store[15:12] ? CURSOR_RST : SEND;
               next_touchX = '0;
               next_touchY = '0;
             end
-            else next_stateC = DRAW;
-          end else if (ct == 3) begin
-            next_ct = ct + 19'b1;
-            next_touchX = {touchX[9:2], screen_data[3:2]};
-            next_touchY = {touchY[9:2], screen_data[1:0]};         
+            else next_stateC = &store[15:12] ? POLL_INT : DRAW;
           end else begin
             next_ct = ct + 19'b1;
             next_if_busy = 1;
@@ -324,6 +321,14 @@ module dpu (
                 next_stateI = PREP_REG;
                 next_touchY = {screen_data, 2'b0};
               end
+              19'd3: begin //clear interrupt
+                next_touchX = {touchX[9:2], screen_data[3:2]};
+                next_touchY = {touchY[9:2], screen_data[1:0]};
+                next_screen_reg = 8'hF1;
+                next_screen_r = 0;
+                next_state = PREP_REG;
+                next_screen_data = 8'b00000100;
+              end 
               default:;
             endcase
           end
@@ -781,7 +786,7 @@ module dpu (
         //update store after each shape done printing
         //transition to CURSOR_RST when all shapes done printing
         if (!if_busy && stateI == IDLE_I) begin 
-          if (!screen_data[7] && !screen_data[6]) begin 
+          if (!screen_data[7] && !screen_data[6]) begin //checks if draw function done
             if (store[12]) begin
               next_store = {4'b1110, store[11:3], 3'b0};
               next_stateC = FIX;
@@ -792,8 +797,8 @@ module dpu (
               next_store = {4'b1000, store[11:9], 9'b0};
               next_stateC = FIX;
             end else begin
-              next_store = '0;
-              next_stateC = CURSOR_RST;
+              next_store = 16'hF000; //set up correct COORD state behavior
+              next_stateC = POLL_INT; //POLL_INT waits for user to clear shapes
             end
           end else begin
             next_if_busy = 1;
@@ -818,11 +823,13 @@ module dpu (
             next_touchX = '0;
             next_touchY = '0;
             next_pixelbit = '0;
+            next_store = '0;
           end else begin
             next_ct = ct + 19'b1;
             next_if_busy = 1;
             next_screen_data = '0;
 
+            //reset mem write cursor
             case (ct) 
               19'd0: begin
                 next_screen_reg = 8'h46;
