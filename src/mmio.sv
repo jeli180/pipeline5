@@ -23,6 +23,7 @@ module mmio (
   output logic dp_req, dp_lw,
   output logic [31:0] dp_addr, dp_write_data,
   
+  //from dpu
   input logic dp_ack,
   input logic [31:0] dp_read_data
 

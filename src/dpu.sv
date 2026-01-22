@@ -47,6 +47,7 @@ module dpu (
   typedef enum {
     IDLE_I,
     PREP_REG,
+    PREP_REG2,
     INIT_REG,
     SEND_REG,
     END_REG,
@@ -54,6 +55,7 @@ module dpu (
     PREP_DATA,
     INIT_DATA,
     DATA,
+    LAG_DATA,
     END_DATA,
     FINISH_DATA
   } state_interface;
@@ -66,8 +68,8 @@ module dpu (
       - drive is default low;
   */
 
-  logic [7:0] db_w;
-  logic drive;
+  logic [7:0] next_db_w, db_w;
+  logic drive, next_drive. next_rs, next_cd, next_rd, next_wr;
   wire [7:0] db_r;
 
   assign db = drive ? db_w : 'z;
@@ -857,63 +859,81 @@ module dpu (
     endcase
     
     //interface signal defaults
-    rd = 1;
-    wr = 1;
-    rs = 1;
-    cs = 1;
-    drive = 0;
-    db_w = '0;
+    next_rd = 1;
+    next_wr = 1;
+    next_rs = 1;
+    next_cs = 1;
+    next_drive = 0;
+    next_db_w = '0;
 
     case (stateI)
       PREP_REG: begin
-        cs = 0;
+        next_stateI = PREP_REG2;
+      end
+      PREP_REG2: begin
+        next_cs = 0;
         next_stateI = INIT_REG;
       end
       INIT_REG: begin
-        cs = 0;
-        wr = 0;
+        next_cs = 0;
+        next_wr = 0;
         next_stateI = SEND_REG;
       end
       SEND_REG: begin
-        cs = 0;
-        wr = 0;
-        drive = 1;
-        db_w = screen_reg;
+        next_cs = 0;
+        next_wr = 0;
+        next_drive = 1;
+        next_db_w = screen_reg;
         next_stateI = END_REG;
       end
       END_REG: begin
-        cs = 0;
+        next_cs = 0;
         next_stateI = FINISH_REG;
       end
-      FINISH_REG: next_stateI = PREP_DATA;
+      FINISH_REG: begin
+        next_rs = 0;
+        next_stateI = PREP_DATA;
+      end
       PREP_DATA: begin
-        cs = 0;
-        rs = 0;
+        next_cs = 0;
+        next_rs = 0;
         next_stateI = INIT_DATA;
       end
       INIT_DATA: begin
-        cs = 0;
-        rs = 0;
-        if (screen_r) rd = 0;
-        else wr = 0;
+        next_cs = 0;
+        next_rs = 0;
+        if (screen_r) next_rd = 0;
+        else next_wr = 0;
         next_stateI = DATA;
       end
       DATA: begin
-        cs = 0;
-        rs = 0;
+        next_cs = 0;
+        next_rs = 0;
         if (screen_r) begin
-          rd = 0;
+          next_rd = 0;
+        end else begin
+          next_wr = 0;
+          next_drive = 1;
+          next_db_w = screen_data;
+        end
+        next_stateI = LAG_DATA;
+      end
+      LAG_DATA: begin
+        next_cs = 0;
+        next_rs = 0;
+        if (screen_r) begin
+          next_rd = 0;
           next_screen_data = db_r;
         end else begin
-          wr = 0;
-          drive = 1;
-          db_w = screen_data;
+          next_wr = 0;
+          next_drive = 1;
+          next_db_w = screen_data;
         end
         next_stateI = END_DATA;
       end
       END_DATA: begin
-        cs = 0;
-        rs = 0;
+        next_cs = 0;
+        next_rs = 0;
         next_stateI = FINISH_DATA;
       end
       FINISH_DATA: begin
@@ -939,6 +959,12 @@ module dpu (
       store <= '0;
       ack <= 0;
       read_data <= '0;
+      cs <= 1'b1;
+      rs <= 1'b1;
+      wr <= 1'b1;
+      rd <= 1'b1;
+      drive <= 0;
+      db_w <= '0;
       stateC <= IDLE_C;
       stateI <= IDLE_I;
     end else begin
@@ -955,15 +981,15 @@ module dpu (
       store <= next_store;
       ack <= next_ack;
       read_data <= next_read_data;
+      cs <= next_cs;
+      rs <= next_rs;
+      wr <= next_wr;
+      rd <= next_rd;
+      drive <= next_drive;
+      db_w <= next_db_w;
       stateC <= next_stateC;
       stateI <= next_stateI;
     end
   end
 
 endmodule
-
-
-
-
-
-
