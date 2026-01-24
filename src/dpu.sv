@@ -473,7 +473,7 @@ module dpu (
                 next_stateI = PREP_REG;
               end
               19'd7: begin
-                next_screen_reg = 8'h36;
+                next_screen_reg = 8'h37;
                 next_screen_data = {7'b0, touchY3[8]};
                 next_screen_r = 0;
                 next_stateI = PREP_REG;
@@ -510,7 +510,7 @@ module dpu (
                 next_screen_r = 1;
                 next_stateI = PREP_REG;
               end
-              19'd13: next_stateI = PREP_DATA;
+              19'd13: next_stateI = PREP_REG;
               default: begin
                 next_stateI = PREP_DATA;
                 //OR the bit of pixel_data with any bit of screen_data
@@ -607,7 +607,7 @@ module dpu (
           end
         end
       end  
-      FIX: begin
+      FIX: begin //100 is circle, 010 is square, 001 is line
         if (!if_busy && stateI == IDLE_I) begin
           if (ct > 8) begin 
             next_stateC = DONE;
@@ -763,7 +763,7 @@ module dpu (
                 next_stateI = PREP_REG;
                 if (store[12]) begin
                   next_screen_data = store[2] ? 8'b01000000 : 
-                                     store[1] ? 8'b10010000 : 
+                                     store[1] ? 8'b10010000 : //square
                                                 8'b10000000 ;
                 end else if (store[13]) begin
                   next_screen_data = store[5] ? 8'b01000000 : 
