@@ -437,7 +437,13 @@ module tb_integratedDPU;
   logic db_drive_en;
   assign db = db_drive_en ? db_drive_val : 8'hZZ;
 
-  logic [15:0] pixels [480:1][29:0]; 
+  logic [15:0] pixels [480:1][29:0];
+  logic [9:0] xcoord [25:0];
+  logic [9:0] ycoord [25:0];
+  logic [9:0] refx [0:230399];
+  logic [9:0] refy [0:230399];
+  int coord_idx;
+
 
   logic [15:0] on_data;
 
@@ -470,8 +476,9 @@ module tb_integratedDPU;
     rst = 1;
     db_drive_val = '0;
     db_drive_en = 0;
-    interrupt = 0;
+    interrupt = 1'b1;
     on_data = 16'd1;
+    coord_idx = 0;
 
     for (int i = 1; i < 481; i++) begin
       for (int j = 0; j < 30; j++) begin
@@ -494,6 +501,62 @@ module tb_integratedDPU;
           if (on_data == 16'hFFFF) on_data = 16'd1;
           else on_data++;
         end else pixel[i][j] = '0;
+      end
+    end
+  endfunction
+
+  function set_coords();
+
+    /*
+      fill bus with 20 random coords, including edge cases
+      last coord will be in special zone so statemachine advances to DRAW
+    */
+
+    int idx = 0;
+    logic [9:0] originx, originy, tempx, tempy;
+
+    //set coords that are sent
+    //set last coord
+    xcoord[25] = 10'd600;
+    ycoord[25] = 10'd240;
+
+    for (int row = 0; row < 5; row++) begin
+      for (int col = 0; col < 5; col++) begin
+        xcoord[idx] = col * 10'd120 - 1;
+        ycoord[idx] = row * 10'd120 - 1;
+        idx++;
+      end
+    end
+
+    idx = 0;
+    //set ref coords (top left) of 4x4 active windows in correct order
+    //NEED TO FIX
+    for (int i = 0; i < 4; i++); begin
+      if (i == 0) begin
+        originx = 10'd0;
+        originy = 10'd0;
+      end else if (i == 1) begin
+        originx = 10'd240;
+        originy = 10'd0;
+      end else if (i == 2) begin
+        originx = 10'd0;
+        originy = 10'd240;
+      end else begin
+        originx = 10'd240;
+        originy = 10'd240;
+      end
+      for (int rowH = 0; rowH < 60; rowH++) begin
+        tempy = originy + 4 * rowH;
+        for (int colH = 0; colH < 60; colH++) begin
+          tempx = originx + 4 * colH
+          for (int row = 0; row < 4; row++) begin
+            for (int col = 0; col < 4; col++) begin
+              refx[idx] = tempx + col;
+              refy[idx] = tempy + col;
+              idx++;
+            end
+          end
+        end
       end
     end
   endfunction
@@ -621,18 +684,164 @@ module tb_integratedDPU;
 
     reset();
     set_pixels();
+    set_coords();
 
     //wait for CPU to write to h4, making dpu start initialization
     detecth4();
+    $display("INIT START");
 
     //monitor initialization commands
-    for (int i = 0; i < 19) begin
-      trans(8'hDA, burst, s_rw, s_addr, s_write_data);
-      if (!s_rw && !burst) $display("WRITE: Addr = %02h | Data = %08b", s_addr, s_write_data);
-      else $display("WRONG: read = %d | burst = %d | addr = %02h | read data = %02h | write data = %08b", s_rw, burst, s_addr, 8'hDA, s_write_data);
-    end
+    trans(8'hDA, burst, s_rw, s_addr, s_write_data);
+    if (burst || s_rw || s_addr != 8'h01 || s_write_data != 8'h01) $display("ERROR: read = %d | burst = %d | exp_addr = h01 | addr = %02h | exp_write = h01 | write data = %02h", s_rw, burst, s_addr, s_write_data);
+
+    trans(8'hDA, burst, s_rw, s_addr, s_write_data);
+    if (burst || s_rw || s_addr != 8'h01 || s_write_data != 8'h00) $display("ERROR: read = %d | burst = %d | exp_addr = h01 | addr = %02h | exp_write = h00 | write data = %02h", s_rw, burst, s_addr, s_write_data);
+
+    trans(8'hDA, burst, s_rw, s_addr, s_write_data);
+    if (burst || s_rw || s_addr != 8'h14 || s_write_data != 8'h63) $display("ERROR: read = %d | burst = %d | exp_addr = h14 | addr = %02h | exp_write = h63 | write data = %02h", s_rw, burst, s_addr, s_write_data);
+
+    trans(8'hDA, burst, s_rw, s_addr, s_write_data);
+    if (burst || s_rw || s_addr != 8'h16 || s_write_data != 8'h1F) $display("ERROR: read = %d | burst = %d | exp_addr = h16 | addr = %02h | exp_write = h1F | write data = %02h", s_rw, burst, s_addr, s_write_data);
+
+    trans(8'hDA, burst, s_rw, s_addr, s_write_data);
+    if (burst || s_rw || s_addr != 8'h17 || s_write_data != 8'h04) $display("ERROR: read = %d | burst = %d | exp_addr = h17 | addr = %02h | exp_write = h04 | write data = %02h", s_rw, burst, s_addr, s_write_data);
+
+    trans(8'hDA, burst, s_rw, s_addr, s_write_data);
+    if (burst || s_rw || s_addr != 8'h18 || s_write_data != 8'h0F) $display("ERROR: read = %d | burst = %d | exp_addr = h18 | addr = %02h | exp_write = h0F | write data = %02h", s_rw, burst, s_addr, s_write_data);
+
+    trans(8'hDA, burst, s_rw, s_addr, s_write_data);
+    if (burst || s_rw || s_addr != 8'h19 || s_write_data != 8'hDF) $display("ERROR: read = %d | burst = %d | exp_addr = h19 | addr = %02h | exp_write = hDF | write data = %02h", s_rw, burst, s_addr, s_write_data);
+
+    trans(8'hDA, burst, s_rw, s_addr, s_write_data);
+    if (burst || s_rw || s_addr != 8'h1A || s_write_data != 8'h01) $display("ERROR: read = %d | burst = %d | exp_addr = h1A | addr = %02h | exp_write = h01 | write data = %02h", s_rw, burst, s_addr, s_write_data);
+
+    trans(8'hDA, burst, s_rw, s_addr, s_write_data);
+    if (burst || s_rw || s_addr != 8'h18 || s_write_data != 8'h2C) $display("ERROR: read = %d | burst = %d | exp_addr = h18 | addr = %02h | exp_write = h2C | write data = %02h", s_rw, burst, s_addr, s_write_data);
+
+    trans(8'hDA, burst, s_rw, s_addr, s_write_data);
+    if (burst || s_rw || s_addr != 8'h1D || s_write_data != 8'h07) $display("ERROR: read = %d | burst = %d | exp_addr = h1D | addr = %02h | exp_write = h07 | write data = %02h", s_rw, burst, s_addr, s_write_data);
+
+    trans(8'hDA, burst, s_rw, s_addr, s_write_data);
+    if (burst || s_rw || s_addr != 8'h1F || s_write_data != 8'h01) $display("ERROR: read = %d | burst = %d | exp_addr = h1F | addr = %02h | exp_write = h01 | write data = %02h", s_rw, burst, s_addr, s_write_data);
+
+    trans(8'hDA, burst, s_rw, s_addr, s_write_data);
+    if (burst || s_rw || s_addr != 8'h01 || s_write_data != 8'h80) $display("ERROR: read = %d | burst = %d | exp_addr = h01 | addr = %02h | exp_write = h80 | write data = %02h", s_rw, burst, s_addr, s_write_data);
+
+    trans(8'hDA, burst, s_rw, s_addr, s_write_data);
+    if (burst || s_rw || s_addr != 8'h70 || s_write_data != 8'h80) $display("ERROR: read = %d | burst = %d | exp_addr = h70 | addr = %02h | exp_write = h80 | write data = %02h", s_rw, burst, s_addr, s_write_data);
+
+    trans(8'hDA, burst, s_rw, s_addr, s_write_data);
+    if (burst || s_rw || s_addr != 8'h71 || s_write_data != 8'h84) $display("ERROR: read = %d | burst = %d | exp_addr = h71 | addr = %02h | exp_write = h84 | write data = %02h", s_rw, burst, s_addr, s_write_data);
+
+    trans(8'hDA, burst, s_rw, s_addr, s_write_data);
+    if (burst || s_rw || s_addr != 8'hF0 || s_write_data != 8'h04) $display("ERROR: read = %d | burst = %d | exp_addr = hF0 | addr = %02h | exp_write = h04 | write data = %02h", s_rw, burst, s_addr, s_write_data);
+
+    trans(8'hDA, burst, s_rw, s_addr, s_write_data);
+    if (burst || s_rw || s_addr != 8'h34 || s_write_data != 8'h20) $display("ERROR: read = %d | burst = %d | exp_addr = h34 | addr = %02h | exp_write = h20 | write data = %02h", s_rw, burst, s_addr, s_write_data);
+
+    trans(8'hDA, burst, s_rw, s_addr, s_write_data);
+    if (burst || s_rw || s_addr != 8'h35 || s_write_data != 8'h03) $display("ERROR: read = %d | burst = %d | exp_addr = h35 | addr = %02h | exp_write = h03 | write data = %02h", s_rw, burst, s_addr, s_write_data);
+
+    trans(8'hDA, burst, s_rw, s_addr, s_write_data);
+    if (burst || s_rw || s_addr != 8'h36 || s_write_data != 8'hE0) $display("ERROR: read = %d | burst = %d | exp_addr = h36 | addr = %02h | exp_write = hE0 | write data = %02h", s_rw, burst, s_addr, s_write_data);
+
+    trans(8'hDA, burst, s_rw, s_addr, s_write_data);
+    if (burst || s_rw || s_addr != 8'h37 || s_write_data != 8'h01) $display("ERROR: read = %d | burst = %d | exp_addr = h37 | addr = %02h | exp_write = h01 | write data = %02h", s_rw, burst, s_addr, s_write_data);
 
     $display("INIT sequence done, transition to CLEAR");
+    $display("CLEAR sequence only prints register set transaction, not correct burst writes as there are too many")
+
+    //clear state sequence
+    for (int i = 0; i < 384000; i++) begin
+      trans(8'hDA, burst, s_rw, s_addr, s_write_data);
+      if (i == 0) begin //reg needs to be specified to this won't be a burst write
+        if (s_rw || burst || s_addr != 8'h02 || s_write_data != 8'hFF) $display("ERROR in CLEAR addr point write: burst = %d | read = %d | addr = %02h | data = %02h", burst, s_rw, s_addr, s_write_data); 
+      end else begin
+        if (s_write_data != 8'hFF || s_rw || !burst) $display("ERROR in CLEAR burst write: read = %d | burst = %d | write data = %08b", s_rw, burst, s_write_data);
+      end
+    end
+
+    $display("CLEAR done, go to POLL_INT");
+    @(posedge clk);
+    
+    //iterate through coord buses to simulate drawing to screen
+
+    for (int i = 0; i < 25; i++) begin //send first 24 indices of coord bus (last index doesn't go to DRAW, which is assumed in this loop)
+      @(posedge clk);
+      #1;
+      interrupt = 0;
+      //now COORD state, send xcoord, ycoord data
+      //dpu reads 8 high of x
+      trans(xcoord[i][9:2], burst, s_rw, s_addr, s_write_data);
+      if (burst || !s_rw || s_addr != 8'h72) $display("ERROR in coord read: burst = %d | read = %d | expected addr = h72 | addr = %02h", burst, s_rw, s_addr);
+
+      //dpu reads 8 high of y
+      trans(ycoord[i][9:2], burst, s_rw, s_addr, s_write_data);
+      if (burst || !s_rw || s_addr != 8'h73) $display("ERROR in coord read: burst = %d | read = %d | expected addr = h73 | addr = %02h", burst, s_rw, s_addr);
+
+      //dpu reads low bits of x, y
+      trans({4'b0, xcoord[i][1:0], ycoord[i][1:0]}, burst, s_rw, s_addr, s_write_data);
+      if (burst || !s_rw || s_addr != 8'h74) $display("ERROR in coord read: burst = %d | read = %d | expected addr = h74 | addr = %02h", burst, s_rw, s_addr);
+
+      //dpu writes to clear interrupt
+      trans(8'hDA, burst, s_rw, s_addr, s_write_data);
+      if (burst || s_rw || s_addr != 8'hF1 || s_write_data != 8'b00000100) $display("ERROR in write interrupt clear: burst = %d | read = %d | expected addr = h74 | addr = %02h | expected writedata = h04 | write = %02h", burst, s_rw, s_addr, s_write_data);
+
+      @(posedge clk); //clear interrupt
+      interrupt = 1'b1;
+
+      //now in DRAW
+      trans(8'hDA, burst, s_rw, s_addr, s_write_data);
+      if (burst || s_rw || s_addr != 8'h46 || s_write_data != xcoord[i][7:0]) $display("ERROR in DRAW: burst = %d | read = %d | expected addr = h46 | addr = %02h | expected writedata = %02h | write = %02h", burst, s_rw, s_addr, xcoord[i][7:0], s_write_data);
+
+      trans(8'hDA, burst, s_rw, s_addr, s_write_data);
+      if (burst || s_rw || s_addr != 8'h47 || s_write_data != {6'b0, xcoord[i][9:8]}) $display("ERROR in DRAW: burst = %d | read = %d | expected addr = h47 | addr = %02h | expected writedata = %02h | write = %02h", burst, s_rw, s_addr, {6'b0, xcoord[i][9:8]}, s_write_data);
+
+      trans(8'hDA, burst, s_rw, s_addr, s_write_data);
+      if (burst || s_rw || s_addr != 8'h48 || s_write_data != ycoord[i][7:0]) $display("ERROR in DRAW: burst = %d | read = %d | expected addr = h48 | addr = %02h | expected writedata = %02h | write = %02h", burst, s_rw, s_addr, ycoord[i][7:0], s_write_data);
+
+      trans(8'hDA, burst, s_rw, s_addr, s_write_data);
+      if (burst || s_rw || s_addr != 8'h49 || s_write_data != {6'b0, ycoord[i][9:8]}) $display("ERROR in DRAW: burst = %d | read = %d | expected addr = h49 | addr = %02h | expected writedata = %02h | write = %02h", burst, s_rw, s_addr, {6'b0, ycoord[i][9:8]}, s_write_data);
+
+      trans(8'hDA, burst, s_rw, s_addr, s_write_data);
+      if (burst || s_rw || s_addr != 8'h02 || s_write_data != 8'b0) $display("ERROR in DRAW: burst = %d | read = %d | expected addr = h02 | addr = %02h | expected writedata = h00 | write = %02h", burst, s_rw, s_addr, s_write_data);
+    end
+
+    $display("drawing done, sending last interrupt/coord to transition to SEND");
+
+    //send coord where x > 480 to transition to SEND
+    @(posedge clk);
+    #1;
+    interrupt = 0;
+
+    trans(xcoord[i][9:2], burst, s_rw, s_addr, s_write_data);
+    if (burst || !s_rw || s_addr != 8'h72) $display("ERROR in coord read: burst = %d | read = %d | expected addr = h72 | addr = %02h", burst, s_rw, s_addr);
+
+    //dpu reads 8 high of y
+    trans(ycoord[i][9:2], burst, s_rw, s_addr, s_write_data);
+    if (burst || !s_rw || s_addr != 8'h73) $display("ERROR in coord read: burst = %d | read = %d | expected addr = h73 | addr = %02h", burst, s_rw, s_addr);
+
+    //dpu reads low bits of x, y
+    trans({4'b0, xcoord[i][1:0], ycoord[i][1:0]}, burst, s_rw, s_addr, s_write_data);
+    if (burst || !s_rw || s_addr != 8'h74) $display("ERROR in coord read: burst = %d | read = %d | expected addr = h74 | addr = %02h", burst, s_rw, s_addr);
+
+    //dpu writes to clear interrupt
+    trans(8'hDA, burst, s_rw, s_addr, s_write_data);
+    if (burst || s_rw || s_addr != 8'hF1 || s_write_data != 8'b00000100) $display("ERROR in write interrupt clear: burst = %d | read = %d | expected addr = h74 | addr = %02h | expected writedata = h04 | write = %02h", burst, s_rw, s_addr, s_write_data);
+
+    @(posedge clk); //clear interrupt
+    interrupt = 1'b1;
+
+    $display("now in SEND");
+    //loop through every pixel read + send
+    for (int i = 1; i < 481; i++) begin
+      for (int j = 0; j < 30; j++) begin
+        for (int k = 0; k < 16; k++) begin
+          
+          //dpu writes to set active window
+          trans(8'hDA, burst, s_rw, s_addr, s_write_data);
+          if (burst || s_rw || s_addr != 8'h30 || s_write_data != )
+
 
 
 

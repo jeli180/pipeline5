@@ -210,7 +210,7 @@ module dpu (
               //turn display on
               19'd11: begin
                 next_screen_reg = 8'h1;
-                next_screen_data = 8'b10000000;
+                next_screen_data = 8'h80;
                 next_screen_r = 0;
                 next_stateI = PREP_REG;
               end
@@ -218,13 +218,13 @@ module dpu (
               //touchpad config
               19'd12: begin
                 next_screen_reg = 8'h70;
-                next_screen_data = 8'b10000000;
+                next_screen_data = 8'h80;
                 next_screen_r = 0;
                 next_stateI = PREP_REG;
               end
               19'd13: begin
                 next_screen_reg = 8'h71;
-                next_screen_data = 8'b10000100;
+                next_screen_data = 8'h84;
                 next_screen_r = 0;
                 next_stateI = PREP_REG;
               end
@@ -232,7 +232,7 @@ module dpu (
               //interrupt enable
               19'd14: begin
                 next_screen_reg = 8'hF0;
-                next_screen_data = 8'b00000100;
+                next_screen_data = 8'h04;
                 next_screen_r = 0;
                 next_stateI = PREP_REG;
               end
@@ -240,25 +240,25 @@ module dpu (
               //set active window
               19'd15: begin
                 next_screen_reg = 8'h34;
-                next_screen_data = 8'b00100000;
+                next_screen_data = 8'h20;
                 next_screen_r = 0;
                 next_stateI = PREP_REG;
               end
               19'd16: begin
                 next_screen_reg = 8'h35;
-                next_screen_data = 8'b00000011;
+                next_screen_data = 8'h03;
                 next_screen_r = 0;
                 next_stateI = PREP_REG;
               end
               19'd17: begin
                 next_screen_reg = 8'h36;
-                next_screen_data = 8'b1110000;
+                next_screen_data = 8'hE0;
                 next_screen_r = 0;
                 next_stateI = PREP_REG;
               end
               19'd18: begin
                 next_screen_reg = 8'h37;
-                next_screen_data = 8'b1;
+                next_screen_data = 8'h01;
                 next_screen_r = 0;
                 next_stateI = PREP_REG;
               end
@@ -503,8 +503,8 @@ module dpu (
                 next_screen_r = 0;
                 next_stateI = PREP_REG;
               end 
-              //start sending pixels, d12 is different from default case as there is no data in screen_data
-              //d13 because datasheet says there is a dummy read
+              //start sending pixels, d13 is different from default case as there is no data in screen_data
+              //d12 because datasheet says there is a dummy read
               19'd12: begin
                 next_screen_reg = 8'h2;
                 next_screen_r = 1;
