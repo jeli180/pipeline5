@@ -316,7 +316,7 @@ module tb_integratedDPU;
 
     //inout
     .db(db)
-  )
+  );
 
   dcache dcache0 (
     .clk(clk),
@@ -500,7 +500,7 @@ module tb_integratedDPU;
     rst = 0;
   endtask
 
-  function set_shape(); //set shape reference vals
+  task automatic set_shape(); //set shape reference vals
     shape_id[0] = 3'b100; //circle
     shape_id[1] = 3'b001; //line
     shape_id[2] = 3'b010;
@@ -537,23 +537,23 @@ module tb_integratedDPU;
     square_endx[3] = 10'b0110100011;
     square_endy[2] = 10'b0110100011;
     square_endy[3] = 10'b0110100011;
-  endfunction
+  endtask
 
-  function set_pixels();
+  task automatic set_pixels();
     logic [31:0] ref_reg;
     for (int i = 1; i < 481; i++) begin
       ref_reg = i;
       for (int j = 0; j < 30; j++) begin
         if (ref_reg[j]) begin
-          pixel[i][j] = on_data;
+          pixels[i][j] = on_data;
           if (on_data == 16'hFFFF) on_data = 16'd1;
           else on_data++;
-        end else pixel[i][j] = '0;
+        end else pixels[i][j] = '0;
       end
     end
-  endfunction
+  endtask
 
-  function set_coords();
+  task automatic set_coords();
 
     /*
       fill bus with 20 random coords, including edge cases
@@ -570,8 +570,12 @@ module tb_integratedDPU;
 
     for (int row = 0; row < 5; row++) begin
       for (int col = 0; col < 5; col++) begin
-        xcoord[idx] = col * 10'd120 - 1;
-        ycoord[idx] = row * 10'd120 - 1;
+        if (row == 4) ycoord[idx] = row * 10'd120 - 1;
+        else ycoord[idx] = row * 10'd120;
+
+        if (col == 4) xcoord[idx] = col * 10'd120 - 1;
+        else xcoord[idx] = col * 10'd120;
+
         idx++;
       end
     end
@@ -579,7 +583,7 @@ module tb_integratedDPU;
     idx = 0;
     //set ref coords (top left) of 4x4 active windows in correct order
     //NEED TO FIX
-    for (int i = 0; i < 4; i++); begin
+    for (int i = 0; i < 4; i++) begin
       if (i == 0) begin
         originx = 10'd0;
         originy = 10'd0;
@@ -600,11 +604,11 @@ module tb_integratedDPU;
           idx++;
           refx[idx] = refx[idx - 1] + 10'd3;
           refy[idx] = refy[idx - 1] + 10'd3;
-          idx++
+          idx++;
         end
       end
     end
-  endfunction
+  endtask
 
   task trans(
     input logic [7:0] s_read,
@@ -689,10 +693,10 @@ module tb_integratedDPU;
 
     end else begin : error_case
       $display("ERROR in wr or rd pull cycle: wr = %d | rd = %d", wr, rd);
-      @(posedge);
+      @(posedge clk);
       #1;
       $display("ERROR followup: cs = %d | rs = %d | wr = %d | rd = %d | data = %08b", cs, rs, wr, rd, db);
-      @(posedge);
+      @(posedge clk);
       #1;
       $display("ERROR followup: cs = %d | rs = %d | wr = %d | rd = %d | data = %08b", cs, rs, wr, rd, db);
     end
@@ -725,7 +729,7 @@ module tb_integratedDPU;
 
   initial begin
     $dumpfile("sim/waves.vcd");
-    $dumpvars(0, tb_pipelineTOP);
+    $dumpvars(0, tb_integratedDPU);
 
     reset();
     set_pixels();
@@ -795,7 +799,7 @@ module tb_integratedDPU;
     if (burst || s_rw || s_addr != 8'h37 || s_write_data != 8'h01) $display("ERROR: read = %d | burst = %d | exp_addr = h37 | addr = %02h | exp_write = h01 | write data = %02h", s_rw, burst, s_addr, s_write_data);
 
     $display("INIT sequence done, transition to CLEAR");
-    $display("CLEAR sequence only prints register set transaction, not correct burst writes as there are too many")
+    $display("CLEAR sequence only prints register set transaction, not correct burst writes as there are too many");
 
     //clear state sequence
     for (int i = 0; i < 384000; i++) begin
@@ -860,15 +864,15 @@ module tb_integratedDPU;
     #1;
     interrupt = 0;
 
-    trans(xcoord[i][9:2], burst, s_rw, s_addr, s_write_data);
+    trans(xcoord[25][9:2], burst, s_rw, s_addr, s_write_data);
     if (burst || !s_rw || s_addr != 8'h72) $display("ERROR in coord read: burst = %d | read = %d | expected addr = h72 | addr = %02h", burst, s_rw, s_addr);
 
     //dpu reads 8 high of y
-    trans(ycoord[i][9:2], burst, s_rw, s_addr, s_write_data);
+    trans(ycoord[25][9:2], burst, s_rw, s_addr, s_write_data);
     if (burst || !s_rw || s_addr != 8'h73) $display("ERROR in coord read: burst = %d | read = %d | expected addr = h73 | addr = %02h", burst, s_rw, s_addr);
 
     //dpu reads low bits of x, y
-    trans({4'b0, xcoord[i][1:0], ycoord[i][1:0]}, burst, s_rw, s_addr, s_write_data);
+    trans({4'b0, xcoord[25][1:0], ycoord[25][1:0]}, burst, s_rw, s_addr, s_write_data);
     if (burst || !s_rw || s_addr != 8'h74) $display("ERROR in coord read: burst = %d | read = %d | expected addr = h74 | addr = %02h", burst, s_rw, s_addr);
 
     //dpu writes to clear interrupt
@@ -906,7 +910,7 @@ module tb_integratedDPU;
         if (burst || s_rw || s_addr != 8'h35 || s_write_data != {6'b0, refx[coord_idx][9:8]}) $display("ERROR in active window set: burst = %d | read = %d | expected addr = h35 | addr = %02h | expected writedata = %02h | write = %02h", burst, s_rw, s_addr, {6'b0, refx[coord_idx][9:8]}, s_write_data);
 
         trans(8'hDA, burst, s_rw, s_addr, s_write_data);
-        if (burst || s_rw || s_addr != 8'h36 || s_write_data != refy[coord_idx][7:0]) $display("ERROR in active window set: burst = %d | read = %d | expected addr = h37 | addr = %02h | expected writedata = %02h | write = %02h", burst, s_rw, s_addr, refy[coord_idx][7:0], s_write_data);
+        if (burst || s_rw || s_addr != 8'h36 || s_write_data != refy[coord_idx][7:0]) $display("ERROR in active window set: burst = %d | read = %d | expected addr = h36 | addr = %02h | expected writedata = %02h | write = %02h", burst, s_rw, s_addr, refy[coord_idx][7:0], s_write_data);
 
         trans(8'hDA, burst, s_rw, s_addr, s_write_data);
         if (burst || s_rw || s_addr != 8'h37 || s_write_data != {7'b0, refy[coord_idx][8]}) $display("ERROR in active window set: burst = %d | read = %d | expected addr = h37 | addr = %02h | expected writedata = %02h | write = %02h", burst, s_rw, s_addr, {7'b0, refy[coord_idx][8]}, s_write_data);
@@ -924,7 +928,7 @@ module tb_integratedDPU;
         trans(8'hDA, burst, s_rw, s_addr, s_write_data);
         if (burst || s_rw || s_addr != 8'h4D || s_write_data != {7'b0, refy[coord_idx - 1][8]}) $display("ERROR in active window set: burst = %d | read = %d | expected addr = h4D | addr = %02h | expected writedata = %02h | write = %02h", burst, s_rw, s_addr, {7'b0, refy[coord_idx - 1][8]}, s_write_data);
 
-        cord_idx++;
+        coord_idx++;
 
         //send pixel data
         trans(8'hEE, burst, s_rw, s_addr, s_write_data); //act as dummy read
@@ -932,8 +936,8 @@ module tb_integratedDPU;
         logic [7:0] pix;
 
         for (int k = 0; k < 16; k++) begin
-          pix_data = pixels[i][j][k] ? 8'h0 : 8'hFF;
-          trans(pix_data, burst, s_rw, s_addr, s_write_data);
+          pix = pixels[i][j][k] ? 8'h0 : 8'hFF;
+          trans(pix, burst, s_rw, s_addr, s_write_data);
           if (k != 0 && (!burst || !s_rw)) $display("ERROR in SEND pixel burst read: burst = %d | s_rw = %d", burst, s_rw);
           else if (k == 0 && (burst || !s_rw || s_addr != 8'h02)) $display("ERROR in SEND pixel read addr point: burst = %d | s_rw = %d | s_addr = %02h", burst, s_rw, s_addr);
         end
@@ -941,7 +945,7 @@ module tb_integratedDPU;
 
       //goes to WAIT_RECIEVE, dpu waits for CPU store to h4
       detecth4();
-      if (i != 481) $display("WAIT_RECIEVE transition to SEND");
+      if (i != 480) $display("WAIT_RECIEVE transition to SEND");
       else $display("WAIT_RECIEVE transition to WAIT_INFERENCE");
       //if last iteration of "i" for loop then exit to WAIT_INFERENCE instead of back to SEND
     end
@@ -977,7 +981,7 @@ module tb_integratedDPU;
     if (burst || s_rw || s_addr != 8'h37 || s_write_data != 8'h01) $display("ERROR: read = %d | burst = %d | exp_addr = h37 | addr = %02h | exp_write = h01 | write data = %02h", s_rw, burst, s_addr, s_write_data);
 
     //transition to CLEAR (write 384000 white pixels)
-    $display("PREP_CLEAR -> CLEAR")
+    $display("PREP_CLEAR -> CLEAR");
     for (int i = 0; i < 384000; i++) begin
       trans(8'hDA, burst, s_rw, s_addr, s_write_data);
       if (i == 0) begin //reg needs to be specified to this won't be a burst write
@@ -1020,7 +1024,7 @@ module tb_integratedDPU;
 
         trans(8'hDA, burst, s_rw, s_addr, s_write_data);
         if (burst || s_rw || s_addr != 8'h90 || s_write_data != 8'h40) $display("ERROR in FIX shape draw: read = %d | burst = %d | exp addr = h90 | addr = %02h | exp data = %02h | data = %02h", s_rw, burst, s_addr, 8'h40, s_write_data);
-      end else if (shape_id[i] = 3'b010) begin //square
+      end else if (shape_id[i] == 3'b010) begin //square
         $display("Drawing square in quadrant %d", i + 1);
 
         trans(8'hDA, burst, s_rw, s_addr, s_write_data);
@@ -1095,7 +1099,7 @@ module tb_integratedDPU;
       if (i == 4) $display("DONE -> FIX");
       else $display("DONE -> POLL_INT");
     end
-    $display("sending a couple interrupt events with coords in the draw box, dpu should ignore")
+    $display("sending a couple interrupt events with coords in the draw box, dpu should ignore");
     //simulate sending coords not in designated area since dpu is supposed to not do anything for that
     for (int i = 22; i < 26; i++) begin
       @(posedge clk);
@@ -1136,10 +1140,30 @@ module tb_integratedDPU;
     if (burst || s_rw || s_addr != 8'h49 || s_write_data != 8'b0) $display("ERROR in CURSOR_RST: burst = %d | read = %d | exp addr = h49 | addr = %02h | exp write = h00 | write = %02h", burst, s_rw, s_addr, s_write_data);
 
     @(posedge clk);
-    @(posedge clk);
 
     $display("CURSOR_RST -> CLEAR");
-    $display("END OF TB");
+    $display("END OF TESTING FOR DPU, NOW POLL REGISTER FILE WRITES TO ENSURE DATA TRANSFER SUCCESS");
+
+    //start sequence is a write to reg 31
+    do begin
+      @(posedge clk);
+      @(negedge clk);
+    end while (!(file_wen && file_regD == 5'd31));
+
+    //now cpu writes the register data it read from DPU to register 30
+    //the data should start at 32'd1 and go to 32'd480
+    //cpu needs to get rid of valid bits before it sends back to match 
+    for (int i = 1; i < 481; i++) begin
+      do begin
+        @(posedge clk);
+        @(negedge clk);
+      end while (!(file_wen && file_regD == 5'd30));
+
+      if (file_write_data == i) $display("PASS: data = %d", i);
+      else $display("FAIL: expected = %d | actual = %d", i, file_write_data);
+    end
+    
+    @(posedge clk);
 
     $finish;
   end
