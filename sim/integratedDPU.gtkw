@@ -1,0 +1,18 @@
+[*]
+[*] GTKWave Analyzer v3.3.100 (w)1999-2019 BSI
+[*] Tue Jan 27 03:18:28 2026
+[*]
+[dumpfile] "C:\Users\jeliu\OneDrive\Desktop\pipeline5\sim\waves.vcd"
+[dumpfile_mtime] "Tue Jan 27 03:17:57 2026"
+[dumpfile_size] 67682212
+[savefile] "C:\Users\jeliu\OneDrive\Desktop\pipeline5\sim\integratedDPU.gtkw"
+[timestart] 0
+[size] 1000 600
+[pos] -1 -1
+*0.000000 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1
+[sst_width] 197
+[signals_width] 78
+[sst_expanded] 1
+[sst_vpaned_height] 153
+[pattern_trace] 1
+[pattern_trace] 0
