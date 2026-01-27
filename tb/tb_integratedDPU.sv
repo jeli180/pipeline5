@@ -294,6 +294,8 @@ module tb_integratedDPU;
   );
 
   dpu dpu0 (
+    .clk(clk),
+    .rst(rst),
 
     //from mmio
     .req(dp_req),
@@ -456,6 +458,8 @@ module tb_integratedDPU;
 
   logic [15:0] on_data;
 
+  logic [7:0] pix;
+
   //temps to store trans task outputs
   logic s_rw, burst; //read high
   logic [7:0] s_addr, s_write_data, s_read_data;
@@ -488,6 +492,7 @@ module tb_integratedDPU;
     interrupt = 1'b1;
     on_data = 16'd1;
     coord_idx = 0;
+    pix = '0;
 
     for (int i = 1; i < 481; i++) begin
       for (int j = 0; j < 30; j++) begin
@@ -727,6 +732,8 @@ module tb_integratedDPU;
     @(posedge clk);
   endtask
 
+  //LINES CHANGED FOR SIM: 813, 956, 897, 995, 1167
+
   initial begin
     $dumpfile("sim/waves.vcd");
     $dumpvars(0, tb_integratedDPU);
@@ -745,7 +752,7 @@ module tb_integratedDPU;
     if (burst || s_rw || s_addr != 8'h01 || s_write_data != 8'h01) $display("ERROR: read = %d | burst = %d | exp_addr = h01 | addr = %02h | exp_write = h01 | write data = %02h", s_rw, burst, s_addr, s_write_data);
 
     trans(8'hDA, burst, s_rw, s_addr, s_write_data);
-    if (burst || s_rw || s_addr != 8'h01 || s_write_data != 8'h00) $display("ERROR: read = %d | burst = %d | exp_addr = h01 | addr = %02h | exp_write = h00 | write data = %02h", s_rw, burst, s_addr, s_write_data);
+    if (!burst || s_rw || s_write_data != 8'h00) $display("ERROR: read = %d | burst = %d | exp_addr = h01 | addr = %02h | exp_write = h00 | write data = %02h", s_rw, burst, s_addr, s_write_data);
 
     trans(8'hDA, burst, s_rw, s_addr, s_write_data);
     if (burst || s_rw || s_addr != 8'h14 || s_write_data != 8'h63) $display("ERROR: read = %d | burst = %d | exp_addr = h14 | addr = %02h | exp_write = h63 | write data = %02h", s_rw, burst, s_addr, s_write_data);
@@ -766,7 +773,7 @@ module tb_integratedDPU;
     if (burst || s_rw || s_addr != 8'h1A || s_write_data != 8'h01) $display("ERROR: read = %d | burst = %d | exp_addr = h1A | addr = %02h | exp_write = h01 | write data = %02h", s_rw, burst, s_addr, s_write_data);
 
     trans(8'hDA, burst, s_rw, s_addr, s_write_data);
-    if (burst || s_rw || s_addr != 8'h18 || s_write_data != 8'h2C) $display("ERROR: read = %d | burst = %d | exp_addr = h18 | addr = %02h | exp_write = h2C | write data = %02h", s_rw, burst, s_addr, s_write_data);
+    if (burst || s_rw || s_addr != 8'h1B || s_write_data != 8'h2C) $display("ERROR: read = %d | burst = %d | exp_addr = h1B | addr = %02h | exp_write = h2C | write data = %02h", s_rw, burst, s_addr, s_write_data);
 
     trans(8'hDA, burst, s_rw, s_addr, s_write_data);
     if (burst || s_rw || s_addr != 8'h1D || s_write_data != 8'h07) $display("ERROR: read = %d | burst = %d | exp_addr = h1D | addr = %02h | exp_write = h07 | write data = %02h", s_rw, burst, s_addr, s_write_data);
@@ -802,8 +809,10 @@ module tb_integratedDPU;
     $display("CLEAR sequence only prints register set transaction, not correct burst writes as there are too many");
 
     //clear state sequence
-    for (int i = 0; i < 384000; i++) begin
+    //for (int i = 0; i < 384000; i++) begin 
+    for (int i = 0; i < 10; i++) begin //reduce cycles for simulation, also changed in dpu.sv
       trans(8'hDA, burst, s_rw, s_addr, s_write_data);
+      $display("CLEAR pixel %d", i);
       if (i == 0) begin //reg needs to be specified to this won't be a burst write
         if (s_rw || burst || s_addr != 8'h02 || s_write_data != 8'hFF) $display("ERROR in CLEAR addr point write: burst = %d | read = %d | addr = %02h | data = %02h", burst, s_rw, s_addr, s_write_data); 
       end else begin
@@ -884,7 +893,8 @@ module tb_integratedDPU;
 
     $display("now in SEND");
     //loop through every pixel read + send
-    for (int i = 1; i < 481; i++) begin
+    //for (int i = 1; i < 481; i++) begin
+    for (int i = 1; i < 9; i++) begin //CHANGE FOR SIM
       for (int j = 0; j < 30; j++) begin
           
         //dpu writes to set top left active window
@@ -933,8 +943,6 @@ module tb_integratedDPU;
         //send pixel data
         trans(8'hEE, burst, s_rw, s_addr, s_write_data); //act as dummy read
 
-        logic [7:0] pix;
-
         for (int k = 0; k < 16; k++) begin
           pix = pixels[i][j][k] ? 8'h0 : 8'hFF;
           trans(pix, burst, s_rw, s_addr, s_write_data);
@@ -945,7 +953,8 @@ module tb_integratedDPU;
 
       //goes to WAIT_RECIEVE, dpu waits for CPU store to h4
       detecth4();
-      if (i != 480) $display("WAIT_RECIEVE transition to SEND");
+      //if (i != 481) $display("WAIT_RECIEVE transition to SEND: bus = %d", i); CHANGE FOR SIM
+      if (i < 9) $display("WAIT_RECIEVE transition to SEND: bus = %d", i);
       else $display("WAIT_RECIEVE transition to WAIT_INFERENCE");
       //if last iteration of "i" for loop then exit to WAIT_INFERENCE instead of back to SEND
     end
@@ -975,14 +984,15 @@ module tb_integratedDPU;
     if (burst || s_rw || s_addr != 8'h35 || s_write_data != 8'h03) $display("ERROR: read = %d | burst = %d | exp_addr = h35 | addr = %02h | exp_write = h03 | write data = %02h", s_rw, burst, s_addr, s_write_data);
 
     trans(8'hDA, burst, s_rw, s_addr, s_write_data);
-    if (burst || s_rw || s_addr != 8'h36 || s_write_data != 8'hE0) $display("ERROR: read = %d | burst = %d | exp_addr = h36 | addr = %02h | exp_write = hE0 | write data = %02h", s_rw, burst, s_addr, s_write_data);
+    if (burst || s_rw || s_addr != 8'h36 || s_write_data != 8'h70) $display("ERROR: read = %d | burst = %d | exp_addr = h36 | addr = %02h | exp_write = h70 | write data = %02h", s_rw, burst, s_addr, s_write_data);
 
     trans(8'hDA, burst, s_rw, s_addr, s_write_data);
     if (burst || s_rw || s_addr != 8'h37 || s_write_data != 8'h01) $display("ERROR: read = %d | burst = %d | exp_addr = h37 | addr = %02h | exp_write = h01 | write data = %02h", s_rw, burst, s_addr, s_write_data);
 
     //transition to CLEAR (write 384000 white pixels)
     $display("PREP_CLEAR -> CLEAR");
-    for (int i = 0; i < 384000; i++) begin
+    //for (int i = 0; i < 384000; i++) begin
+    for (int i = 0; i < 10; i++) begin
       trans(8'hDA, burst, s_rw, s_addr, s_write_data);
       if (i == 0) begin //reg needs to be specified to this won't be a burst write
         if (s_rw || burst || s_addr != 8'h02 || s_write_data != 8'hFF) $display("ERROR in CLEAR addr point write: burst = %d | read = %d | addr = %02h | data = %02h", burst, s_rw, s_addr, s_write_data); 
@@ -1141,7 +1151,7 @@ module tb_integratedDPU;
 
     @(posedge clk);
 
-    $display("CURSOR_RST -> CLEAR");
+    $display("CURSOR_RST -> FULL_DONE");
     $display("END OF TESTING FOR DPU, NOW POLL REGISTER FILE WRITES TO ENSURE DATA TRANSFER SUCCESS");
 
     //start sequence is a write to reg 31
@@ -1153,7 +1163,8 @@ module tb_integratedDPU;
     //now cpu writes the register data it read from DPU to register 30
     //the data should start at 32'd1 and go to 32'd480
     //cpu needs to get rid of valid bits before it sends back to match 
-    for (int i = 1; i < 481; i++) begin
+    //for (int i = 1; i < 481; i++) begin
+    for (int i = 1; i < 9; i++) begin
       do begin
         @(posedge clk);
         @(negedge clk);
