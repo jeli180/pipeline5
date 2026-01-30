@@ -27,15 +27,27 @@ module mmio (
   input logic dp_ack,
   input logic [31:0] dp_read_data
 
+  //to tensor_mem
+  output logic tm_wen,
+  output logic [31:0] tm_write_data, tm_addr
+
   //add systolic
 );
 
+  /*
+    addr map
+    - 0 not used 
+    - dpu: 4 -> 8
+    - dcache: 12 -> 1032
+    - tensor_mem: 1036 -> 58750
+  */
+
   //outputs to dcache 
-  assign ca_req = addr > 32'd8 ? req : 1'b0;
-  assign ca_lw = addr > 32'd8 ? lw : 1'b0;
-  assign ca_regD_in = addr > 32'd8 ? regD_in : '0;
-  assign ca_addr_in = addr > 32'd8 ? addr : '0;
-  assign ca_write_data = addr > 32'd8 ? data_write : '0;
+  assign ca_req = addr > 32'd8 && addr <= 32'd1032 ? req : 1'b0;
+  assign ca_lw = addr > 32'd8 && addr <= 32'd1032 ? lw : 1'b0;
+  assign ca_regD_in = addr > 32'd8 addr <= 32'd1032 ? regD_in : '0;
+  assign ca_addr_in = addr > 32'd8 && addr <= 32'd1032 ? addr - 32'd12 : 32'hFFFFFFFF; //offset dcache addr to utilize first 3 addr
+  assign ca_write_data = addr > 32'd8 && addr <= 32'd1032 ? data_write : '0;
 
   //outputs to dpu
   //if storing to dpu, block rereq on load_done_stall since dpu already recieved first store
@@ -44,6 +56,11 @@ module mmio (
   assign dp_lw = addr <= 32'd8 && ((ca_load_done_stall && lw) || !ca_load_done_stall) ? lw : 1'b0;
   assign dp_addr = addr <= 32'd8 && ((ca_load_done_stall && lw) || !ca_load_done_stall) ? addr : '0;
   assign dp_write_data = addr <= 32'd8 && ((ca_load_done_stall && lw) || !ca_load_done_stall) ? data_write : '0;
+
+  //outputs to tensor_mem (only writes)
+  assign tm_wen = req && addr >= 32'd1036 && !lw && !ca_load_done_stall ? 1'b1 : 1'b0;
+  assign tm_addr = req && addr >= 32'd1036 && !lw && !ca_load_done_stall ? addr - 32'd1036 : 32'hFFFFFFFF;
+  assign tm_write_data = req && addr >= 32'd1036 && !lw && !ca_load_done_stall ? data_write : '0;
 
   //outputs to cpu
   assign hit_ack = dp_ack || ca_hit;
