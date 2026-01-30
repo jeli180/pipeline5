@@ -733,6 +733,7 @@ module tb_integratedDPU;
   endtask
 
   //LINES CHANGED FOR SIM: 813, 956, 897, 995, 1167
+  //assume dpu only sends 8 30b bus instead of 480, need to change dpu.sv for this tb to be valid
 
   initial begin
     $dumpfile("sim/waves.vcd");

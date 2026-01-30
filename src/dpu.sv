@@ -276,8 +276,8 @@ module dpu (
       end
       CLEAR: begin
         if (!if_busy && stateI == IDLE_I) begin //double check, !if_busy should guarantee second condition
-          //if (ct > 383999) begin //if ct is 384000, all pixels have been written
-          if (ct > 9) begin //lower for simulation speed
+          //if (ct > 9) begin //simulation version
+          if (ct > 383999) begin
             if (&store[15:12]) next_stateC = FIX;
             else next_stateC = POLL_INT;
             next_ct = '0;
@@ -424,8 +424,8 @@ module dpu (
             end else if (touchX == 10'd236 && touchY == 10'd476) begin //third quad done
               next_touchX = 10'd240;
               next_touchY = 10'd240;
-            //end else if (touchX == 10'd476 && touchY == 10'd476) begin //all quads done, SEND state done
-            end else if (touchX == 10'd236 && touchY == 10'd12) begin //speed up simulation
+            end else if (touchX == 10'd476 && touchY == 10'd476) begin //all quads done, SEND state done
+            //end else if (touchX == 10'd236 && touchY == 10'd12) begin //speed up simulation
               next_touchX = '0;
               next_touchY = '0;
               next_pixel_data[31] = 1'b1;

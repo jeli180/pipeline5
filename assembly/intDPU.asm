@@ -82,7 +82,7 @@ addi x0, x0, 0
 addi x0, x0, 0
 addi x0, x0, 0
 
-addi x7, x0, 8 # change to 480 on final run
+addi x7, x0, 8 # should be 480 but lowered for sim
 addi x8, x0, 0
 addi x20, x0, 12
 addi x31, x0, 0
