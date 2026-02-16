@@ -543,26 +543,10 @@ module dpu (
       WAIT_INFERENCE: begin 
         //store all shape data in pixel bit, 4 msb are valids for each quadrant, 
         //transition when all 4msb are high
-        if (&store[15:12]) next_stateC = PREP_CLEAR;
-        case (shape[6:3])
-          4'b0001: begin 
-            next_store[12] = 1'b1;
-            next_store[2:0] = shape[2:0];
-          end
-          4'b0010: begin
-            next_store[13] = 1'b1;
-            next_store[5:3] = shape[2:0];
-          end
-          4'b0100: begin
-            next_store[14] = 1'b1;
-            next_store[8:6] = shape[2:0];
-          end
-          4'b1000: begin
-            next_store[15] = 1'b1;
-            next_store[11:9] = shape[2:0];
-          end
-          default:;
-        endcase
+        if (&shape[15:12]) begin
+          next_stateC = PREP_CLEAR;
+          next_store = shape[15:0];
+        end
       end
       PREP_CLEAR: begin
         if (!if_busy && stateI == IDLE_I) begin

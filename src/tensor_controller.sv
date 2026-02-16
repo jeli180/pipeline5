@@ -174,6 +174,7 @@ module tensor_controller (
       IDLE_C: begin
         if (mmio_req && mmio_addr == 32'h4 && !mmio_lw) begin
           next_stateS = REQ;
+          next_req_status = 1'b1;
           next_stateC = WAIT_FILL_1;
           next_clear = 1'b1;
           ren = 1'b1;
@@ -262,6 +263,12 @@ module tensor_controller (
         end else begin
           next_en = 1'b1;
           next_col_ct = col_ct + 12'd1;
+
+          //row shift logic
+          next_row_shift[3] = '0;
+          for (int i = 0; i < 3) begin
+            next_row_shift[i] = row_shift[i + 1];
+          end
         end
       end
       STORE_1: begin
