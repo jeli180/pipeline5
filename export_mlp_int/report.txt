@@ -1,0 +1,33 @@
+=== 2-layer MLP export report ===
+Class mapping: 0=circle, 1=square, 2=line
+
+Shapes:
+  W1: (64, 3600) int8
+  b1: (64,) int32
+  W2: (3, 64) int8
+  b2: (3,) int32
+
+Quantization:
+  W1 symmetric per-tensor scale s_w1 = 0.0013522197  (w_float ~= w_int8 * s_w1)
+  W2 symmetric per-tensor scale s_w2 = 0.0036326898  (w_float ~= w_int8 * s_w2)
+  b1_int32 = round(b1_float / s_w1)
+  b2_int32 = round(b2_float / s_w2)
+
+Activation requant (after ReLU):
+  SHIFT = 6
+  a1_q = clamp( ((a1_int32 + (1<<(SHIFT-1))) >> SHIFT), 0..127 )  [SHIFT=0 => no rounding/shift]
+  Chosen SHIFT stats: sat=0.769%  nonzero=73.729%  mean=26.354  median=18.000
+
+Accuracy / consistency:
+  Float val accuracy: 98.44%
+  Integer emu val accuracy: 98.39%
+  Argmax match (float preds vs int emu preds): 99.94%
+
+Notes / assumptions (important for hardware matching):
+  - Input x is treated as int32 0/1 (no input scaling).
+  - MAC is emulated as int8->int32 accumulation using signed weights; input is nonnegative.
+  - Biases are exported in the same int32 accumulator domain used by the MAC sums.
+  - Layer2 uses a1_q (0..127) directly as int8 activations; its scale is implicit via SHIFT.
+
+Files written to: C:\Users\jeliu\OneDrive\Desktop\pipeline5\export_mlp_int
+  - W1_int8.txt, b1_int32.txt, W2_int8.txt, b2_int32.txt, SHIFT.txt, report.txt
