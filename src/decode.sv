@@ -12,7 +12,7 @@ module decode (
   output logic [4:0] file_reg1, file_reg2,
 
   //output to execute
-  output logic rtype, itype, load, store, branch, jal, jalr, //itype flag is for opcode 0010011
+  output logic rtype, itype, utype, load, store, branch, jal, jalr, //itype flag is for opcode 0010011
   output logic [31:0] imm, finalI, finalpc,
   output logic [4:0] reg1, reg2, regD,
   output logic [31:0] reg1val, reg2val
@@ -21,7 +21,7 @@ module decode (
   //supports rtype, itype, branching, jal, jalr, lw (full word), sw (full word), NO UTYPE OR ENVIRONMENT
 
   //internal signals
-  logic next_rtype, next_itype, next_load, next_store, next_branch, next_jal, next_jalr;
+  logic next_rtype, next_itype, next_load, next_store, next_branch, next_jal, next_jalr, next_utype;
   logic [31:0] next_imm, next_finalI, next_finalpc;
   logic [4:0] next_reg1, next_reg2, next_regD;
   //logic [31:0] next_reg1val, next_reg2val;
@@ -35,6 +35,7 @@ module decode (
     //default nop
     next_itype = 0;
     next_rtype = 0;
+    next_utype = 0;
     next_load = 0;
     next_store = 0;
     next_branch = 0;
@@ -58,6 +59,7 @@ module decode (
     end else if (stall) begin
       next_itype = itype;
       next_rtype = rtype;
+      next_utype = utype;
       next_load = load;
       next_store = store;
       next_branch = branch;
@@ -108,6 +110,11 @@ module decode (
           //== COMB
           //next_reg1val = file_val1;
         end
+        7'b0110111: begin //utype (lui)
+          next_utype = 1'b1;
+          next_regD = inst [11:7];
+          next_imm = {12'b0, inst[31:12]};
+        end
         7'b0100011: begin //store: reg1, reg2, imm
           next_store = 1;
           next_reg1 = inst [19:15];
@@ -155,6 +162,7 @@ module decode (
     if (rst) begin
       itype <= 1;
       rtype <= 0;
+      utype <= 0;
       load <= 0;
       store <= 0;
       branch <= 0;
@@ -171,6 +179,7 @@ module decode (
     end else begin
       itype <= next_itype;
       rtype <= next_rtype;
+      utype <= next_utype;
       load <= next_load;
       store <= next_store;
       branch <= next_branch;

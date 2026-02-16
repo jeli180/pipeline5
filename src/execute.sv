@@ -10,7 +10,7 @@ module execute (
   input logic regwrite_mem, regwrite_wb,
 
   //from decode
-  input logic rtype, itype, load, store, branch, jal, jalr, //itype flag is for opcode 0010011
+  input logic rtype, itype, utype, load, store, branch, jal, jalr, //itype flag is for opcode 0010011
   input logic [31:0] imm, inst, pc,
   input logic [4:0] reg1, reg2, regD,
   input logic [31:0] reg1val, reg2val,
@@ -80,7 +80,7 @@ module execute (
     //generate regwrite, branch_cond, target, result, store_data from input flags and derived finalreg vals
     
     //generate regwrite
-    next_regwrite = (rtype || itype || load || jal|| jalr) ? 1'b1 : 1'b0;
+    next_regwrite = (rtype || itype || utype || load || jal|| jalr) ? 1'b1 : 1'b0;
 
     //generate target
     if (branch || jal) begin
@@ -129,7 +129,8 @@ module execute (
         3'h7: next_result = final_reg1val & operator;
         default:;
       endcase
-    end else if (load || store) next_result = final_reg1val + imm;
+    end else if (utype) next_result = imm << 12;
+    else if (load || store) next_result = final_reg1val + imm;
     else if (jal || jalr) next_result = pc + 4;
 
     //override should be at bottom of comb
