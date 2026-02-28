@@ -36,10 +36,15 @@ addi x26, x0, 120
 addi x2, x0, 2
 addi x13, x0, 3
 addi x12, x0, 32
+addi x4, x0, 0
+lui  x7, 0x10         # x7 = 0x00010000
+addi x7, x7, -1       # x7 = 0x0000FFFF
 
 poll_dpu_pixel:
 lw x1, 4(x0) 
 srli x3, x1, 30 # x3 has x1's bit 31, 32 in lsbs
+slli x1, x1, 2
+srli x1, x1, 2
 blt x0, x3, valid_dpu_pixel
 jal x0, poll_dpu_pixel
 
@@ -67,7 +72,7 @@ jal x0, poll_dpu_pixel
 
 # if it is the last data in the quadrant, there should be 16 unsent bits in x4
 quadrant_done:
-andi x4, x4, 0x0000FFFF
+and x4, x4, x7
 sw x4, 0(x29)
 addi x29, x29, 4
 addi x27, x0, 0 # reset x27 for next quadrant
@@ -77,7 +82,7 @@ jal x0, poll_dpu_pixel
 
 # ALL PIXELS LOADED FROM DPU
 
-# only relevant reg val is x29 = 12 for dcache base address, all others discarded
+# all reg vals discarded
 start_inference:
 # set base address for tensor controller
 lui x30, 0xE
@@ -91,7 +96,7 @@ sw x1, 12(x30) # store 6 to shift register
 addi x15, x0, 113
 slli x15, x15, 2 # dcache addr gap between quadrants (3600 / 32 = 112.5 round up to 113 and each address is 4 apart)
 # x11 is q1, x12 is q2, x13 is q3, x14 is q4
-addi x11, x29, 0
+addi x11, x0, 12
 add x12, x11, x15
 add x13, x12, x15
 add x14, x13, x15
@@ -217,26 +222,25 @@ jal x0, get_tc_pixel
 send_tensor_last:
 lw x2, 8(x30)
 beq x0, x2, send_tensor_last
-sw x1, 9(x30)
+sw x1, 8(x30)
 jal x0, get_tensor_shape
 
 
 # only x30 matters
 get_tensor_shape:
-addi x20, x0, 0
 lui x20, 0x80000 # only bit 31 high
 
 get_tensor_shape_loop:
 lw x1, 4(x30)
 and x2, x1, x20
-blt x2, x20, get_tensor_shape_loop
+beq x2, x0, get_tensor_shape_loop
 
 # shape valid, need to ack to tensor
 sw x0, 4(x30)
 
 # prep x3 with shape data
 addi x3, x0, 15
-slli x3, x1, 12
+slli x3, x3, 12
 
 addi x4, x0, 2047
 slli x4, x4, 1
