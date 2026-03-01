@@ -187,7 +187,7 @@ module icache (
   //solo inst to get miss instr
   wb_simulator #(
     .MEM_FILE("instruction_memory.memh"),
-    .DEPTH(1024),
+    .DEPTH(2048),
     .LATENCY(3)
   ) wb_solo_inst (
     .clk(clk),
@@ -204,7 +204,7 @@ module icache (
   //cache rewrite wb
   wb_simulator #(
     .MEM_FILE("instruction_memory.memh"),
-    .DEPTH(1024),
+    .DEPTH(2048),
     .LATENCY(3)
   ) wb0 (
     .clk(clk),
@@ -220,7 +220,7 @@ module icache (
 
   wb_simulator #(
     .MEM_FILE("instruction_memory.memh"),
-    .DEPTH(1024),
+    .DEPTH(2048),
     .LATENCY(3)
   ) wb1 (
     .clk(clk),
@@ -236,7 +236,7 @@ module icache (
 
   wb_simulator #(
     .MEM_FILE("instruction_memory.memh"),
-    .DEPTH(1024),
+    .DEPTH(2048),
     .LATENCY(3)
   ) wb2 (
     .clk(clk),
@@ -252,7 +252,7 @@ module icache (
 
   wb_simulator #(
     .MEM_FILE("instruction_memory.memh"),
-    .DEPTH(1024),
+    .DEPTH(2048),
     .LATENCY(3)
   ) wb3 (
     .clk(clk),

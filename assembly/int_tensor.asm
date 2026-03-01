@@ -1,258 +1,446 @@
-# in the actual hex file, add machine code to load weight/biases to tensor mem
-# the asm is in weight_load folder
+    .section .text
+    .globl _start
 
-# the rest of this code assumes weights have already been loaded
+# ------------------------------------------------------------
+# Shape IDs
+#   0 = circle outline
+#   1 = square outline
+#   2 = line
+#
+# Memory map
+#   Q1 base =   12
+#   Q2 base =  464
+#   Q3 base =  916
+#   Q4 base = 1368
+#
+# Each shape:
+#   60 x 60 = 3600 bits = 113 words
+# ------------------------------------------------------------
 
-# need to store 32bit buses to dcache when DPU sends them 30 at a time (top 2 are status bits)
-# 2 registers that hold pixel data: data_store (x1) where i lw into and data_send (x4) which will be sw to mem
-# also an intermediary register x5 for bit ops 
-# last_valid tracks the last valid bit in data_send, initialized to 0 | 1-32
+_start:
 
-# when there is a new valid data in x1, shift x1 left by last_valid into x5
-# or x5 with data_send
+    # Quadrant 1: circle outline at base 12
+    addi x10, x0, 12
+    addi x11, x0, 0
+    jal  x1, render_shape
 
-# if last valid is greater or equal to 2, store data_send to memory since it is full
-# shift x1 right by (32-last_valid) and store that into data_send (preserve bits that weren't used)
-# subtract 2 from last valid
+    # Quadrant 2: square outline at base 464
+    addi x10, x0, 464
+    addi x11, x0, 1
+    jal  x1, render_shape
 
-# else don't store data_send to memory
-# add 30 to last valid
-# don't need to preserve anything in x1 
+    # Quadrant 3: vertical line at base 916
+    addi x10, x0, 916
+    addi x11, x0, 2
+    jal  x1, render_shape
 
-# NOTE: the status bits don't affect anything since they aren't tracked with last status
-# and are overwritten
+    # Quadrant 4: circle outline at base 1368
+    addi x10, x0, 1368
+    addi x11, x0, 0
+    jal  x1, render_shape
 
-# check if bit 32 is high, if so all pixel data has been sent and we can mask the first 16 bits of half full data_send 
-# (get rid of status bits) and send to mem | this is because 3600 / 32 = 12.5
+    # all shapes generated and stored to dcache
+    # start inference
 
-# init DPU
-sw x0, 4(x0)
+    start_inference:
+    # set base address for tensor controller
+    lui x30, 0xE
+    addi x30, x30, 1424 # make x30 base address for tensor controller (58780)
 
-repeat:
-addi x29, x0, 12 # dcache sw address (changes)
-addi x28, x0, 0 # tracks last valid bit in data_send (x4)
-addi x27, x0, 0 # tracks how many data buses sent per quadrant
-addi x26, x0, 120
-addi x2, x0, 2
-addi x13, x0, 3
-addi x12, x0, 32
-addi x4, x0, 0
-lui  x7, 0x10         # x7 = 0x00010000
-addi x7, x7, -1       # x7 = 0x0000FFFF
+    # load shift value to tensor_controller
+    addi x1, x0, 6
+    sw x1, 12(x30) # store 6 to shift register
 
-poll_dpu_pixel:
-lw x1, 4(x0) 
-srli x3, x1, 30 # x3 has x1's bit 31, 32 in lsbs
-slli x1, x1, 2
-srli x1, x1, 2
-blt x0, x3, valid_dpu_pixel
-jal x0, poll_dpu_pixel
+    # setup 4 dcache memory pointers to start at quadrant base addr
+    addi x15, x0, 113
+    slli x15, x15, 2 # dcache addr gap between quadrants (3600 / 32 = 112.5 round up to 113 and each address is 4 apart)
+    # x11 is q1, x12 is q2, x13 is q3, x14 is q4
+    addi x11, x0, 12
+    add x12, x11, x15
+    add x13, x12, x15
+    add x14, x13, x15
 
-# process the pixel data in x1 to make 32b bus to send to dcache
-valid_dpu_pixel:
-sw x0, 4(x0) # ack dpu
-addi x27, x27, 1 # increment data count 
-sll x5, x1, x28
-or x4, x4, x5
+    # init tensor
+    sw x0, 4(x30)
+    addi x10, x0, 0 
+    addi x4, x0, 1
+    addi x5, x0, 2
+    addi x6, x0, 3
+    addi x17, x0, 255
+    slli x18, x17, 8
+    slli x19, x17, 16
+    slli x20, x17, 24
 
-bge x28, x2, send_pixel_bus # if last valid >= 2
-addi x28, x28, 30
-jal x0, poll_dpu_pixel
+    # x30, x11-14, x15/x10 for tracking RESERVED, x1(sent to tc)
+    # x17-20 are masks for which byte were on
+    # x3 is status (1 means byte 1 loaded to x1, 2 means byte 2 loaded to x1, etc)
+    # get 32b bus for each quadrant from dcache, load into x21-24, mask into x25-28
+    get_tc_pixel:
+    add x25, x10, x11
+    add x26, x10, x12
+    add x27, x10, x13
+    add x28, x10, x14
 
-send_pixel_bus:
-sw x4, 0(x29) # store completed 32b bus to dcache
-addi x29, x29, 4 # advance dcache mem pointer
-sub x6, x12, x28 # x6 = 32 - last_valid
-srl x4, x1, x6 # shift x1 right and store to x4 to preserve unsent bits
-addi x28, x28, -2
+    lw x21, 0(x25)
+    lw x22, 0(x26)
+    lw x23, 0(x27)
+    lw x24, 0(x28)
 
-# check if its the last data in the quadrant
-bge x27, x26, quadrant_done
-jal x0, poll_dpu_pixel
+    addi x10, x10, 4 # point to next pixel bus
 
-# if it is the last data in the quadrant, there should be 16 unsent bits in x4
-quadrant_done:
-and x4, x4, x7
-sw x4, 0(x29)
-addi x29, x29, 4
-addi x27, x0, 0 # reset x27 for next quadrant
-# check last pixel (bits 32, 31 still in x3)
-beq x3, x13, start_inference
-jal x0, poll_dpu_pixel
+    # prepare first bus using byte 1 mask
+    and x25, x21, x17
+    and x26, x22, x17
+    and x27, x23, x17
+    and x28, x24, x17
 
-# ALL PIXELS LOADED FROM DPU
+    # shift into correct position
+    slli x26, x26, 8
+    slli x27, x27, 16
+    slli x28, x28, 24
 
-# all reg vals discarded
-start_inference:
-# set base address for tensor controller
-lui x30, 0xE
-addi x30, x30, 1424 # make x30 base address for tensor controller (58780)
+    addi x1, x0, 0 # reset x1
+    or x1, x1, x25
+    or x1, x1, x26
+    or x1, x1, x27
+    or x1, x1, x28
 
-# load shift value to tensor_controller
-addi x1, x0, 6
-sw x1, 12(x30) # store 6 to shift register
+    addi x3, x4, 0 # update status
 
-# setup 4 dcache memory pointers to start at quadrant base addr
-addi x15, x0, 113
-slli x15, x15, 2 # dcache addr gap between quadrants (3600 / 32 = 112.5 round up to 113 and each address is 4 apart)
-# x11 is q1, x12 is q2, x13 is q3, x14 is q4
-addi x11, x0, 12
-add x12, x11, x15
-add x13, x12, x15
-add x14, x13, x15
+    jal x0, send_tensor_pixel
 
-# init tensor
-sw x0, 4(x30)
-addi x10, x0, 0 
-addi x4, x0, 1
-addi x5, x0, 2
-addi x6, x0, 3
-addi x17, x0, 255
-slli x18, x17, 8
-slli x19, x17, 16
-slli x20, x17, 24
+    fill_second: # also check if x10 = x15 for full done 
+    # mask
+    and x25, x21, x18
+    and x26, x22, x18
+    and x27, x23, x18
+    and x28, x24, x18
 
-# x30, x11-14, x15/x10 for tracking RESERVED, x1(sent to tc)
-# x17-20 are masks for which byte were on
-# x3 is status (1 means byte 1 loaded to x1, 2 means byte 2 loaded to x1, etc)
-# get 32b bus for each quadrant from dcache, load into x21-24, mask into x25-28
-get_tc_pixel:
-lw x21, x10(x11)
-lw x22, x10(x12)
-lw x23, x10(x13)
-lw x24, x10(x14)
+    # shift
+    srli x25, x25, 8
+    slli x27, x27, 8
+    slli x28, x28, 16
 
-addi x10, x10, 4 # point to next pixel bus
+    addi x1, x0, 0
+    or x1, x1, x25
+    or x1, x1, x26
+    or x1, x1, x27
+    or x1, x1, x28
 
-# prepare first bus using byte 1 mask
-and x25, x21, x17
-and x26, x22, x17
-and x27, x23, x17
-and x28, x24, x17
+    beq x10, x15, send_tensor_last
+    addi x3, x5, 0
+    jal x0, send_tensor_pixel
 
-# shift into correct position
-slli x26, x26, 8
-slli x27, x27, 16
-slli x28, x28, 24
+    fill_third:
+    # mask
+    and x25, x21, x19
+    and x26, x22, x19
+    and x27, x23, x19
+    and x28, x24, x19
 
-addi x1, x0, 0 # reset x1
-or x1, x1, x25
-or x1, x1, x26
-or x1, x1, x27
-or x1, x1, x28
+    # shift
+    srli x25, x25, 16
+    srli x26, x26, 8
+    slli x28, x28, 8
 
-addi x3, x4, 0 # update status
+    addi x1, x0, 0
+    or x1, x1, x25
+    or x1, x1, x26
+    or x1, x1, x27
+    or x1, x1, x28
 
-jal x0, send_tensor_pixel
+    addi x3, x6, 0
+    jal x0, send_tensor_pixel
 
-fill_second: # also check if x10 = x15 for full done 
-# mask
-and x25, x21, x18
-and x26, x22, x18
-and x27, x23, x18
-and x28, x24, x18
+    fill_fourth:
+    # mask
+    and x25, x21, x20
+    and x26, x22, x20
+    and x27, x23, x20
+    and x28, x24, x20
 
-# shift
-srli x25, x25, 8
-slli x27, x27, 8
-slli x28, x28, 16
+    # shift
+    srli x25, x25, 24
+    srli x26, x26, 16
+    srli x27, x27, 8
 
-addi x1, x0, 0
-or x1, x1, x25
-or x1, x1, x26
-or x1, x1, x27
-or x1, x1, x28
+    addi x1, x0, 0
+    or x1, x1, x25
+    or x1, x1, x26
+    or x1, x1, x27
+    or x1, x1, x28
 
-beq x10, x15, send_tensor_last
-addi x3, x5, 0
-jal x0, send_tensor_pixel
+    addi x3, x0, 4
+    jal x0, send_tensor_pixel
 
-fill_third:
-# mask
-and x25, x21, x19
-and x26, x22, x19
-and x27, x23, x19
-and x28, x24, x19
+    send_tensor_pixel: # x1 is ready to be sent
+    lw x2, 8(x30)
+    beq x0, x2, send_tensor_pixel
 
-# shift
-srli x25, x25, 16
-srli x26, x26, 8
-slli x28, x28, 8
+    sw x1, 8(x30)
+    beq x4, x3, fill_second
+    beq x5, x3, fill_third
+    beq x6, x3, fill_fourth
+    jal x0, get_tc_pixel
 
-addi x1, x0, 0
-or x1, x1, x25
-or x1, x1, x26
-or x1, x1, x27
-or x1, x1, x28
-
-addi x3, x6, 0
-jal x0, send_tensor_pixel
-
-fill_fourth:
-# mask
-and x25, x21, x20
-and x26, x22, x20
-and x27, x23, x20
-and x28, x24, x20
-
-# shift
-srli x25, x25, 24
-srli x26, x26, 16
-srli x27, x27, 8
-
-addi x1, x0, 0
-or x1, x1, x25
-or x1, x1, x26
-or x1, x1, x27
-or x1, x1, x28
-
-addi x3, x0, 4
-jal x0, send_tensor_pixel
-
-send_tensor_pixel: # x1 is ready to be sent
-lw x2, 8(x30)
-beq x0, x2, send_tensor_pixel
-
-sw x1, 8(x30)
-beq x4, x3, fill_second
-beq x5, x3, fill_third
-beq x6, x3, fill_fourth
-jal x0, get_tc_pixel
-
-send_tensor_last:
-lw x2, 8(x30)
-beq x0, x2, send_tensor_last
-sw x1, 8(x30)
-jal x0, get_tensor_shape
+    send_tensor_last:
+    lw x2, 8(x30)
+    beq x0, x2, send_tensor_last
+    sw x1, 8(x30)
+    jal x0, get_tensor_shape
 
 
-# only x30 matters
-get_tensor_shape:
-lui x20, 0x80000 # only bit 31 high
+    # only x30 matters
+    get_tensor_shape:
+    lui x20, 0x80000 # only bit 31 high
 
-get_tensor_shape_loop:
-lw x1, 4(x30)
-and x2, x1, x20
-beq x2, x0, get_tensor_shape_loop
+    get_tensor_shape_loop:
+    lw x1, 4(x30)
+    and x2, x1, x20
+    beq x2, x0, get_tensor_shape_loop
 
-# shape valid, need to ack to tensor
-sw x0, 4(x30)
+    # shape valid, need to ack to tensor
+    sw x0, 4(x30)
 
-# prep x3 with shape data
-addi x3, x0, 15
-slli x3, x3, 12
+    # prep x3 with shape data
+    addi x3, x0, 15
+    slli x3, x3, 12
 
-addi x4, x0, 2047
-slli x4, x4, 1
-addi x4, x4, 1 # x4 is lsb 12b mask
+    addi x4, x0, 2047
+    slli x4, x4, 1
+    addi x4, x4, 1 # x4 is lsb 12b mask
 
-and x1, x1, x4
-or x3, x3, x1
+    and x1, x1, x4
+    or x3, x3, x1
 
-sw x3, 8(x0)
+    # x3 has shape data, write to x31 for tb
+    addi x31, x3, 0
 
-# all done, go back to polling dpu pixels for next inference process
-jal x0, repeat
+done:
+    jal  x0, done
 
 
+# ------------------------------------------------------------
+# render_shape
+#
+# Inputs:
+#   x10 = base address
+#   x11 = shape_id
+#
+# Clobbers:
+#   x12-x24
+# ------------------------------------------------------------
+render_shape:
+    la   x20, circle_left
+    addi x24, x0, 60          # constant 60
 
+    addi x12, x0, 0           # row = 0
+    addi x14, x0, 0           # current packed word
+    addi x15, x0, 0           # bit position 0..31
+
+row_loop:
+    beq  x12, x24, shape_done
+    addi x13, x0, 0           # col = 0
+
+col_loop:
+    beq  x13, x24, next_row
+
+    addi x16, x0, 0           # pixel_on = 0 by default
+
+    beq  x11, x0, pixel_circle_outline
+
+    addi x19, x0, 1
+    beq  x11, x19, pixel_square_outline
+
+    jal  x0, pixel_line
+
+
+# ------------------------------------------------------------
+# Circle outline
+# For each row:
+#   left  = circle_left[row]
+#   right = 59 - left
+#
+# A pixel is on only if:
+#   col == left OR col == right
+#
+# Special case:
+#   if left == 60 => empty row
+#   if left == right => set only one pixel
+# ------------------------------------------------------------
+pixel_circle_outline:
+    slli x21, x12, 2
+    add  x21, x21, x20
+    lw   x22, 0(x21)          # x22 = left
+
+    beq  x22, x24, pixel_done # empty row if left == 60
+
+    beq  x13, x22, circle_set
+
+    addi x23, x0, 59
+    sub  x23, x23, x22        # x23 = right
+    beq  x13, x23, circle_set
+
+    jal  x0, pixel_done
+
+circle_set:
+    addi x16, x0, 1
+    jal  x0, pixel_done
+
+
+# ------------------------------------------------------------
+# Square outline
+# Outer box:
+#   rows 12..47
+#   cols 12..47
+#
+# On if:
+#   inside box AND on top/bottom/left/right border
+# ------------------------------------------------------------
+pixel_square_outline:
+    addi x21, x0, 12          # min bound
+    blt  x12, x21, pixel_done
+    blt  x13, x21, pixel_done
+
+    addi x22, x0, 48          # exclusive max bound
+    bge  x12, x22, pixel_done
+    bge  x13, x22, pixel_done
+
+    # Now inside the box, check if on border
+    addi x21, x0, 12
+    beq  x12, x21, square_set
+    beq  x13, x21, square_set
+
+    addi x21, x0, 47
+    beq  x12, x21, square_set
+    beq  x13, x21, square_set
+
+    jal  x0, pixel_done
+
+square_set:
+    addi x16, x0, 1
+    jal  x0, pixel_done
+
+
+# ------------------------------------------------------------
+# Vertical line
+# 4-pixel wide line at cols 28..31
+# ------------------------------------------------------------
+pixel_line:
+    addi x23, x0, 28
+    blt  x13, x23, pixel_done
+
+    addi x23, x0, 32
+    bge  x13, x23, pixel_done
+
+    addi x16, x0, 1
+
+
+# ------------------------------------------------------------
+# Pack current pixel into current 32-bit word
+# ------------------------------------------------------------
+pixel_done:
+    beq  x16, x0, skip_set
+
+    addi x23, x0, 1
+    sll  x23, x23, x15
+    or   x14, x14, x23
+
+skip_set:
+    addi x15, x15, 1          # next bit position
+    addi x13, x13, 1          # next col
+
+    addi x23, x0, 32
+    bne  x15, x23, col_loop
+
+    # Current word full: store it
+    sw   x14, 0(x10)
+    addi x10, x10, 4
+    addi x14, x0, 0
+    addi x15, x0, 0
+
+    jal  x0, col_loop
+
+next_row:
+    addi x12, x12, 1
+    jal  x0, row_loop
+
+shape_done:
+    # Store final partial word (16 valid low bits for 3600 total bits)
+    beq  x15, x0, render_ret
+    sw   x14, 0(x10)
+
+render_ret:
+    jalr x0, x1, 0
+
+
+# ------------------------------------------------------------
+# Circle boundary lookup
+# left bound per row for a symmetric 60x60 circle
+# right bound = 59 - left
+# 60 means empty row
+# ------------------------------------------------------------
+    .section .rodata
+    .align 2
+
+circle_left:
+    .word 60
+    .word 60
+    .word 23
+    .word 20
+    .word 17
+    .word 15
+    .word 14
+    .word 13
+    .word 11
+    .word 10
+    .word 9
+    .word 8
+    .word 8
+    .word 7
+    .word 6
+    .word 5
+    .word 5
+    .word 4
+    .word 4
+    .word 4
+    .word 3
+    .word 3
+    .word 3
+    .word 2
+    .word 2
+    .word 2
+    .word 2
+    .word 2
+    .word 2
+    .word 2
+    .word 2
+    .word 2
+    .word 2
+    .word 2
+    .word 2
+    .word 2
+    .word 2
+    .word 3
+    .word 3
+    .word 3
+    .word 4
+    .word 4
+    .word 4
+    .word 5
+    .word 5
+    .word 6
+    .word 7
+    .word 8
+    .word 8
+    .word 9
+    .word 10
+    .word 11
+    .word 13
+    .word 14
+    .word 15
+    .word 17
+    .word 20
+    .word 23
+    .word 60
+    .word 60

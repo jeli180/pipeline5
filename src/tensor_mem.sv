@@ -32,6 +32,27 @@ module tensor_mem (
     - same as B1
   */
 
+  logic [31:0] addr4;
+
+  assign addr4 = ren ? raddr << 2 : '0;
+
+  wb_simulator #(
+    .MEM_FILE("mlp_weights.memh"),
+    .DEPTH(57800),
+    .LATENCY(1)
+  ) wb0 (
+    .clk(clk),
+    .rst_n(!rst),
+    .req(ren),
+    .we(1'b0),
+    .addr(addr4),
+    .wdata('0),
+    .rdata(rdata),
+    .busy(),
+    .valid()
+  );
+
+  /*
   //wen never overlaps with rens
   localparam int DIM = 57715;
   localparam int ADDR_W = $clog2(DIM);
@@ -62,5 +83,7 @@ module tensor_mem (
     if (rst) rdata <= '0;
     else if (ren) rdata <= data[raddrT];
   end
+
+*/
 
 endmodule

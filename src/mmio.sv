@@ -25,19 +25,19 @@ module mmio (
   
   //from dpu
   input logic dp_ack,
-  input logic [31:0] dp_read_data
+  input logic [31:0] dp_read_data,
 
   //to tensor_mem
   output logic tm_wen,
-  output logic [31:0] tm_write_data, tm_addr
+  output logic [31:0] tm_write_data, tm_addr,
 
   //to tensor controller
   output logic tc_req, tc_lw,
   output logic [31:0] tc_addr, tc_data_write,
 
   //from tensor controller
-  output logic tc_ack,
-  output logic [31:0] tc_read_data
+  input logic tc_ack,
+  input logic [31:0] tc_read_data
 
 );
 
@@ -53,7 +53,7 @@ module mmio (
   //outputs to dcache 
   assign ca_req = addr > 32'd8 && addr <= 32'd1032 ? req : 1'b0;
   assign ca_lw = addr > 32'd8 && addr <= 32'd1032 ? lw : 1'b0;
-  assign ca_regD_in = addr > 32'd8 addr <= 32'd1032 ? regD_in : '0;
+  assign ca_regD_in = addr > 32'd8 && addr <= 32'd1032 ? regD_in : '0;
   assign ca_addr_in = addr > 32'd8 && addr <= 32'd1032 ? addr - 32'd12 : 32'hFFFFFFFF; //offset dcache addr to utilize first 3 addr
   assign ca_write_data = addr > 32'd8 && addr <= 32'd1032 ? data_write : '0;
 
@@ -85,7 +85,7 @@ module mmio (
   //outputs to tensor controller | block store rereq on load_done_stall | rereq load on load_done_stall 
   assign tc_req = addr >= 32'd58768 && ((ca_load_done_stall && lw) || !ca_load_done_stall) ? req : 1'b0;
   assign tc_lw = addr >= 32'd58768 && ((ca_load_done_stall && lw) || !ca_load_done_stall) ? lw : 1'b0;
-  assign tc_addr = addr >= 32'd58768 && ((ca_load_done_stall && lw) || !ca_load_done_stall) ? addr - 32'58768 : '0;
+  assign tc_addr = addr >= 32'd58768 && ((ca_load_done_stall && lw) || !ca_load_done_stall) ? addr - 32'd58768 : '0;
   assign tc_data_write = addr >= 32'd58768 && ((ca_load_done_stall && lw) || !ca_load_done_stall) ? data_write : '0;
 
 endmodule

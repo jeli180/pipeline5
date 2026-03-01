@@ -266,7 +266,7 @@ module tensor_controller (
 
           //row shift logic
           next_row_shift[3] = '0;
-          for (int i = 0; i < 3) begin
+          for (int i = 0; i < 3; i++) begin
             next_row_shift[i] = row_shift[i + 1];
           end
         end
