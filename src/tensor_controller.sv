@@ -8,20 +8,21 @@ module tensor_controller (
   output logic mmio_ack,
   output logic [31:0] mmio_data_read,
 
-  //tensor mem (read only)
-  //rdata comes the cycle after ren/raddr cycle
-  output logic ren,
-  output logic [31:0] raddr,
-  input logic [31:0] rdata,
-
   //array interface
   output logic clear, en,
-  output logic [7:0] row_input [0:3],
-  output logic [7:0] col_input [0:3],
-  input logic [31:0] output_col1 [0:3],
-  input logic [31:0] output_col2 [0:3],
-  input logic [31:0] output_col3 [0:3],
-  input logic [31:0] output_col4 [0:3]
+  // output logic [7:0] row_input [0:3],
+  // output logic [7:0] col_input [0:3],
+  // input logic [31:0] output_col1 [0:3],
+  // input logic [31:0] output_col2 [0:3],
+  // input logic [31:0] output_col3 [0:3],
+  // input logic [31:0] output_col4 [0:3]
+
+  output logic [7:0] row0_in, row1_in, row2_in, row3_in,
+  output logic [7:0] col0_in, col1_in, col2_in, col3_in,
+  input logic [31:0] mac00, mac01, mac02, mac03, //col then row
+  input logic [31:0] mac10, mac11, mac12, mac13,
+  input logic [31:0] mac20, mac21, mac22, mac23,
+  input logic [31:0] mac30, mac31, mac32, mac33
 );
 
   localparam logic [31:0] B1_MEM_START = 57600;
@@ -42,25 +43,53 @@ module tensor_controller (
 
   //control statemachine
   typedef enum {
-    IDLE_C,
-    WAIT_FILL_1,
-    SHIFT_1,
-    STALL_1,
-    LAST_1,
-    STORE_1,
-    BIAS_1,
-    RELU,
-    QUANT,
-    WAIT_FILL_2,
-    SHIFT_2,
-    LAST_2,
-    STORE_2,
-    BIAS_2,
-    CLASS_SEND,
-    RESET
+    IDLE_C, //0
+    WAIT_FILL_1, //1
+    SHIFT_1, //2
+    LAG_1, //3
+    STALL_1, //4
+    COL_FILL, //5
+    LAST_1, //4
+    STORE_1, //5
+    BIAS_1, //6
+    RELU, //7
+    QUANT, //8
+    WAIT_FILL_2, //9
+    SHIFT_2, //10
+    LAST_2, //11
+    STORE_2, //12
+    BIAS_2, //13
+    CLASS_SEND, //14
+    RESET //15
   } state_control;
 
   state_control stateC, next_stateC;
+
+  //===== assigns for replacing unpacked array input
+  logic [31:0] output_col1 [0:3];
+  logic [31:0] output_col2 [0:3];
+  logic [31:0] output_col3 [0:3];
+  logic [31:0] output_col4 [0:3];
+
+  assign output_col1[0] = mac00;
+  assign output_col1[1] = mac01;
+  assign output_col1[2] = mac02;
+  assign output_col1[3] = mac03;
+
+  assign output_col2[0] = mac10;
+  assign output_col2[1] = mac11;
+  assign output_col2[2] = mac12;
+  assign output_col2[3] = mac13;
+
+  assign output_col3[0] = mac20;
+  assign output_col3[1] = mac21;
+  assign output_col3[2] = mac22;
+  assign output_col3[3] = mac23;
+
+  assign output_col4[0] = mac30;
+  assign output_col4[1] = mac31;
+  assign output_col4[2] = mac32;
+  assign output_col4[3] = mac33;
 
   //8 lsb of weight is input to row_input[0]
   //8 lsb of col_bus is input of col_input[0]
@@ -103,11 +132,18 @@ module tensor_controller (
   logic [4:0] next_shift, shift;
   logic [31:0] next_shape, shape;
 
+  //tensor mem signals
+  logic ren;
+  logic [31:0] raddr, rdata;
+
+  //lag stage
+  logic [1:0] lag_ct, next_lag_ct;
   /* REG MAP
     - cpu writes pixel data to h8
     - cpu polls req status from h8 (if we want the next pixel data, set h8 to 1 else 0)
 
   */
+  /*
   genvar i;
   generate
     for (i = 0; i < 4; i++) begin : input_assigns
@@ -115,6 +151,26 @@ module tensor_controller (
       assign row_input[i] = row_shift[0][i * 8 + 7 : i * 8];
     end
   endgenerate
+  */
+
+  //generate block replacement
+  assign col0_in = col_shift[0][7:0];
+  assign col1_in = col_shift[0][15:8];
+  assign col2_in = col_shift[0][23:16];
+  assign col3_in = col_shift[0][31:24];
+
+  assign row0_in = row_shift[0][7:0];
+  assign row1_in = row_shift[0][15:8];
+  assign row2_in = row_shift[0][23:16];
+  assign row3_in = row_shift[0][31:24];
+
+
+
+  //TO SEE OUTPUTS IN WAVEFORMS
+  logic [31:0] test_col_shift0, test_row_shift0;
+
+  assign test_col_shift0 = col_shift[0];
+  assign test_row_shift0 = row_shift[0];
 
   always_comb begin
     //async defaults
@@ -161,6 +217,8 @@ module tensor_controller (
     next_shift = shift;
     next_shape = shape;
 
+    next_lag_ct = '0;
+
     //cpu interface logic (registers offset by mmio) 
     if (mmio_req) begin
       next_mmio_ack = 1'b1;
@@ -182,16 +240,18 @@ module tensor_controller (
         end 
       end
       WAIT_FILL_1: begin
-        next_row_shift[0] = {24'b0, rdata[7:0]};
-        next_row_shift[1] = {16'b0, rdata[15:8], 8'b0};
-        next_row_shift[2] = {8'b0, rdata[23:16], 16'b0};
-        next_row_shift[3] = {rdata[31:24], 24'b0};
+        ren = 1'b1;
+        raddr = row4_ct * 3600;
         if (unvalid != '0) begin
           next_stateC = SHIFT_1;
           ren = 1'b1;
           raddr = row4_ct * 3600 + 32'd1;
-          next_col_ct = 12'd1;
           next_en = 1'b1;
+          next_col_ct = 12'd1;
+          next_row_shift[0] = {24'b0, rdata[7:0]};
+          next_row_shift[1] = {16'b0, rdata[15:8], 8'b0};
+          next_row_shift[2] = {8'b0, rdata[23:16], 16'b0};
+          next_row_shift[3] = {rdata[31:24], 24'b0};
         end
       end
       SHIFT_1: begin
@@ -233,26 +293,59 @@ module tensor_controller (
           //if col_ct = 3599, current rdata is last input, but missing the corresponding last input
           //shift everything (valid row data, invalid col data) but next_en = 0
           //transition to STALL_1
+          next_stateC = LAG_1;
+
+          //since we read 1 address in advance, need to decrement addr
+          next_col_ct = col_ct - 1;
+        end
+      end
+      LAG_1: begin
+        //wait 4 cycles for mac propogation
+        if (lag_ct == 2'd2) begin
           next_en = 1'b0;
           next_stateC = STALL_1;
+
+          next_row_shift[0] = '0;
+          next_row_shift[1] = '0;
+          next_row_shift[2] = '0;
+          next_row_shift[3] = '0;
+        end else begin 
+          next_lag_ct = lag_ct + 2'd1;
+
+          //also continue shifting rows but but don't add new data
+          next_row_shift[0] = {row_shift[1][31:8], 8'b0};
+          next_row_shift[1] = {row_shift[2][31:16], 16'b0};
+          next_row_shift[2] = {row_shift[3][31:24], 24'b0};
+          next_row_shift[3] = '0;
         end
       end
       STALL_1: begin
         //waits for unvalid to move off 0 and sets next_en = 1'b1
         //in STALL_1, if ct = 3599, then go directly to LAST_1, if not then go to SHIFT_1 and req/incr ct
-        next_en = 1'b0;
         if (unvalid != '0) begin
-          next_en = 1'b1;
+          next_en = 1'b0;
           if (col_ct == 12'd3599) begin
             next_stateC = LAST_1;
             next_col_ct = '0;
           end else begin
-            next_stateC = SHIFT_1;
+            next_stateC = COL_FILL;
             ren = 1'b1;
             raddr = row4_ct * 3600 + col_ct + 1'b1;
             next_col_ct = col_ct + 1'b1;
           end
         end
+      end
+      COL_FILL: begin
+        next_en = 1'b1; 
+        next_stateC = SHIFT_1;
+        ren = 1'b1;
+        raddr = row4_ct * 3600 + col_ct + 1'b1;
+        next_en = 1'b1;
+        next_col_ct = col_ct + 12'd1;
+        next_row_shift[0] = {24'b0, rdata[7:0]};
+        next_row_shift[1] = {16'b0, rdata[15:8], 8'b0};
+        next_row_shift[2] = {8'b0, rdata[23:16], 16'b0};
+        next_row_shift[3] = {rdata[31:24], 24'b0};
       end
       LAST_1: begin //last array inputs for the 4row block on this cycle
         //add logic to wait until col inputs propogate through array (~4 cycles)
@@ -260,6 +353,11 @@ module tensor_controller (
         if (col_ct >= 12'd3) begin
           next_en = 1'b0;
           next_stateC = STORE_1;
+
+          next_row_shift[0] = '0;
+          next_row_shift[1] = '0;
+          next_row_shift[2] = '0;
+          next_row_shift[3] = '0;
         end else begin
           next_en = 1'b1;
           next_col_ct = col_ct + 12'd1;
@@ -268,6 +366,16 @@ module tensor_controller (
           next_row_shift[3] = '0;
           for (int i = 0; i < 3; i++) begin
             next_row_shift[i] = row_shift[i + 1];
+          end
+
+          //shift col
+          if (unvalid != '0) begin
+            for (int i = 0; i < 15; i++) begin
+              next_col_shift[i] = col_shift[i+1];
+            end
+            next_col_shift[15] = '0;
+
+            next_unvalid = unvalid - 5'd1;
           end
         end
       end
@@ -355,8 +463,8 @@ module tensor_controller (
       end
       SHIFT_2: begin
         //row 4 of systolic array not used due to dim of WEIGHT vector (only 3 classes)
-        next_row_shift[0] = {24'b0, rdata[7:0]};
-        next_row_shift[1] = {16'b0, rdata[15:8], 8'b0};
+        next_row_shift[0] = {8'b0, row_shift[1][23:8], rdata[7:0]};
+        next_row_shift[1] = {8'b0, row_shift[2][23:16], rdata[15:8], 8'b0};
         next_row_shift[2] = {8'b0, rdata[23:16], 16'b0};
 
         for (int i = 0; i < 3; i++) begin
@@ -600,6 +708,7 @@ module tensor_controller (
       req_status <= '0;
       shift <= '0;
       shape <= '0;
+      lag_ct <= '0;
     end else begin
       stateS <= next_stateS;
       stateC <= next_stateC;
@@ -639,6 +748,19 @@ module tensor_controller (
       req_status <= next_req_status;
       shift <= next_shift;
       shape <= next_shape;
+      lag_ct <= next_lag_ct;
     end
   end
+
+  wb_1cycle #(
+    .MEM_FILE("mlp_weights.memh"),
+    .DEPTH(57800)
+  ) wb0 (
+    .clk(clk),
+    .rst(rst),
+    .ren(ren),
+    .addr(raddr),
+    .rdata(rdata)
+  );
+
 endmodule

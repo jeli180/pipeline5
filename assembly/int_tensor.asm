@@ -19,28 +19,16 @@
 
 _start:
 
-    # Quadrant 1: circle outline at base 12
-    addi x10, x0, 12
-    addi x11, x0, 0
-    jal  x1, render_shape
+    # ------------------------------------------------------------
+    # Hardcoded 60x60 outline bitmaps written directly to dcache
+    # Q1 circle @ 12, Q2 square @ 464, Q3 line @ 916, Q4 circle @ 1368
+    # ------------------------------------------------------------
+    # Q1 circle outline base = 12
 
-    # Quadrant 2: square outline at base 464
-    addi x10, x0, 464
-    addi x11, x0, 1
-    jal  x1, render_shape
+    # ================== FOR DEBUGGING
+    # addi x31, x0, 0 # signal done with pixel load, starting inference
 
-    # Quadrant 3: vertical line at base 916
-    addi x10, x0, 916
-    addi x11, x0, 2
-    jal  x1, render_shape
-
-    # Quadrant 4: circle outline at base 1368
-    addi x10, x0, 1368
-    addi x11, x0, 0
-    jal  x1, render_shape
-
-    # all shapes generated and stored to dcache
-    # start inference
+    jal x0, load_pixels
 
     start_inference:
     # set base address for tensor controller
@@ -50,7 +38,13 @@ _start:
     # load shift value to tensor_controller
     addi x1, x0, 6
     sw x1, 12(x30) # store 6 to shift register
+    sw x0, 4(x30) # init tensor
 
+    addi x16, x0, 16 
+    addi x9, x0, 0 # counter for sending pixels 16 times
+
+    inference_loop:
+    addi x9, x9, 1
     # setup 4 dcache memory pointers to start at quadrant base addr
     addi x15, x0, 113
     slli x15, x15, 2 # dcache addr gap between quadrants (3600 / 32 = 112.5 round up to 113 and each address is 4 apart)
@@ -61,7 +55,6 @@ _start:
     add x14, x13, x15
 
     # init tensor
-    sw x0, 4(x30)
     addi x10, x0, 0 
     addi x4, x0, 1
     addi x5, x0, 2
@@ -92,7 +85,7 @@ _start:
     and x25, x21, x17
     and x26, x22, x17
     and x27, x23, x17
-    and x28, x24, x17
+    and x28, x24, x17 # x24 has 0x000...558 DEBUG
 
     # shift into correct position
     slli x26, x26, 8
@@ -103,7 +96,7 @@ _start:
     or x1, x1, x25
     or x1, x1, x26
     or x1, x1, x27
-    or x1, x1, x28
+    or x1, x1, x28 # x28 has 58... DEBUG
 
     addi x3, x4, 0 # update status
 
@@ -177,7 +170,7 @@ _start:
     lw x2, 8(x30)
     beq x0, x2, send_tensor_pixel
 
-    sw x1, 8(x30)
+    sw x1, 8(x30) # ===============================================
     beq x4, x3, fill_second
     beq x5, x3, fill_third
     beq x6, x3, fill_fourth
@@ -187,6 +180,7 @@ _start:
     lw x2, 8(x30)
     beq x0, x2, send_tensor_last
     sw x1, 8(x30)
+    bne x9, x16, inference_loop
     jal x0, get_tensor_shape
 
 
@@ -219,228 +213,551 @@ _start:
 done:
     jal  x0, done
 
+load_pixels: 
+    # Q1 circle-ish ring base = 12
+    addi x29, x0, 12
+    sw   x0, 0(x29)
+    sw   x0, 4(x29)
+    sw   x0, 8(x29)
+    sw   x0, 12(x29)
+    sw   x0, 16(x29)
+    sw   x0, 20(x29)
+    sw   x0, 24(x29)
+    sw   x0, 28(x29)
+    sw   x0, 32(x29)
+    sw   x0, 36(x29)
+    sw   x0, 40(x29)
+    sw   x0, 44(x29)
+    sw   x0, 48(x29)
+    sw   x0, 52(x29)
+    sw   x0, 56(x29)
+    sw   x0, 60(x29)
+    sw   x0, 64(x29)
+    sw   x0, 68(x29)
+    sw   x0, 72(x29)
+    li   x1, 0x00400000
+    sw   x1, 76(x29)
+    sw   x0, 80(x29)
+    li   x1, 0x01FFF000
+    sw   x1, 84(x29)
+    sw   x0, 88(x29)
+    li   x1, 0x007FFFC0
+    sw   x1, 92(x29)
+    sw   x0, 96(x29)
+    li   x1, 0x001FFFFF
+    sw   x1, 100(x29)
+    li   x1, 0xFC000000
+    sw   x1, 104(x29)
+    li   x1, 0x0007FFFF
+    sw   x1, 108(x29)
+    li   x1, 0x1FE00000
+    sw   x1, 112(x29)
+    li   x1, 0x0000FF00
+    sw   x1, 116(x29)
+    li   x1, 0x007F0000
+    sw   x1, 120(x29)
+    li   x1, 0x00001FC0
+    sw   x1, 124(x29)
+    li   x1, 0x0001F800
+    sw   x1, 128(x29)
+    li   x1, 0x000003F0
+    sw   x1, 132(x29)
+    li   x1, 0x00000FC0
+    sw   x1, 136(x29)
+    li   x1, 0x0000007E
+    sw   x1, 140(x29)
+    li   x1, 0xC000007C
+    sw   x1, 144(x29)
+    li   x1, 0xE0000007
+    sw   x1, 148(x29)
+    li   x1, 0xF8000003
+    sw   x1, 152(x29)
+    li   x1, 0x1E000000
+    sw   x1, 156(x29)
+    li   x1, 0x0F000000
+    sw   x1, 160(x29)
+    li   x1, 0x01F00000
+    sw   x1, 164(x29)
+    li   x1, 0x01F00000
+    sw   x1, 168(x29)
+    li   x1, 0x000F0000
+    sw   x1, 172(x29)
+    li   x1, 0x001E0000
+    sw   x1, 176(x29)
+    li   x1, 0x0000F800
+    sw   x1, 180(x29)
+    li   x1, 0x0003E000
+    sw   x1, 184(x29)
+    li   x1, 0x00000780
+    sw   x1, 188(x29)
+    li   x1, 0x00003C00
+    sw   x1, 192(x29)
+    li   x1, 0x00000078
+    sw   x1, 196(x29)
+    li   x1, 0x800003C0
+    sw   x1, 200(x29)
+    li   x1, 0x00000007
+    sw   x1, 204(x29)
+    li   x1, 0x7800003C
+    sw   x1, 208(x29)
+    li   x1, 0xC0000000
+    sw   x1, 212(x29)
+    li   x1, 0x07800003
+    sw   x1, 216(x29)
+    li   x1, 0x3C000000
+    sw   x1, 220(x29)
+    li   x1, 0x007C0000
+    sw   x1, 224(x29)
+    li   x1, 0x07C00000
+    sw   x1, 228(x29)
+    li   x1, 0x00078000
+    sw   x1, 232(x29)
+    li   x1, 0x003C0000
+    sw   x1, 236(x29)
+    li   x1, 0x00007800
+    sw   x1, 240(x29)
+    li   x1, 0x0003C000
+    sw   x1, 244(x29)
+    li   x1, 0x00000780
+    sw   x1, 248(x29)
+    li   x1, 0x00003C00
+    sw   x1, 252(x29)
+    li   x1, 0x00000078
+    sw   x1, 256(x29)
+    li   x1, 0x800003C0
+    sw   x1, 260(x29)
+    li   x1, 0x00000007
+    sw   x1, 264(x29)
+    li   x1, 0xF800003C
+    sw   x1, 268(x29)
+    li   x1, 0xE0000000
+    sw   x1, 272(x29)
+    li   x1, 0x0F000003
+    sw   x1, 276(x29)
+    li   x1, 0x1E000000
+    sw   x1, 280(x29)
+    li   x1, 0x01F00000
+    sw   x1, 284(x29)
+    li   x1, 0x01F00000
+    sw   x1, 288(x29)
+    li   x1, 0x001E0000
+    sw   x1, 292(x29)
+    li   x1, 0x000F0000
+    sw   x1, 296(x29)
+    li   x1, 0x0003E000
+    sw   x1, 300(x29)
+    li   x1, 0x0000F800
+    sw   x1, 304(x29)
+    li   x1, 0x00007C00
+    sw   x1, 308(x29)
+    li   x1, 0x000007C0
+    sw   x1, 312(x29)
+    li   x1, 0x00000FC0
+    sw   x1, 316(x29)
+    li   x1, 0x0000007E
+    sw   x1, 320(x29)
+    li   x1, 0xF00001F8
+    sw   x1, 324(x29)
+    li   x1, 0x00000003
+    sw   x1, 328(x29)
+    li   x1, 0x1FC0007F
+    sw   x1, 332(x29)
+    li   x1, 0xE0000000
+    sw   x1, 336(x29)
+    li   x1, 0x00FF001F
+    sw   x1, 340(x29)
+    li   x1, 0xFC000000
+    sw   x1, 344(x29)
+    li   x1, 0x0007FFFF
+    sw   x1, 348(x29)
+    li   x1, 0xFF000000
+    sw   x1, 352(x29)
+    li   x1, 0x00001FFF
+    sw   x1, 356(x29)
+    li   x1, 0xFFC00000
+    sw   x1, 360(x29)
+    li   x1, 0x0000007F
+    sw   x1, 364(x29)
+    li   x1, 0xFFF00000
+    sw   x1, 368(x29)
+    li   x1, 0x00000001
+    sw   x1, 372(x29)
+    li   x1, 0x00400000
+    sw   x1, 376(x29)
+    sw   x0, 380(x29)
+    sw   x0, 384(x29)
+    sw   x0, 388(x29)
+    sw   x0, 392(x29)
+    sw   x0, 396(x29)
+    sw   x0, 400(x29)
+    sw   x0, 404(x29)
+    sw   x0, 408(x29)
+    sw   x0, 412(x29)
+    sw   x0, 416(x29)
+    sw   x0, 420(x29)
+    sw   x0, 424(x29)
+    sw   x0, 428(x29)
+    sw   x0, 432(x29)
+    sw   x0, 436(x29)
+    sw   x0, 440(x29)
+    sw   x0, 444(x29)
+    sw   x0, 448(x29)
 
-# ------------------------------------------------------------
-# render_shape
-#
-# Inputs:
-#   x10 = base address
-#   x11 = shape_id
-#
-# Clobbers:
-#   x12-x24
-# ------------------------------------------------------------
-render_shape:
-    la   x20, circle_left
-    addi x24, x0, 60          # constant 60
+    # Q2 thick square base = 464
+    addi x29, x0, 464
+    sw   x0, 0(x29)
+    sw   x0, 4(x29)
+    sw   x0, 8(x29)
+    sw   x0, 12(x29)
+    sw   x0, 16(x29)
+    sw   x0, 20(x29)
+    sw   x0, 24(x29)
+    sw   x0, 28(x29)
+    sw   x0, 32(x29)
+    sw   x0, 36(x29)
+    sw   x0, 40(x29)
+    sw   x0, 44(x29)
+    sw   x0, 48(x29)
+    sw   x0, 52(x29)
+    sw   x0, 56(x29)
+    sw   x0, 60(x29)
+    sw   x0, 64(x29)
+    sw   x0, 68(x29)
+    sw   x0, 72(x29)
+    sw   x0, 76(x29)
+    sw   x0, 80(x29)
+    sw   x0, 84(x29)
+    sw   x0, 88(x29)
+    sw   x0, 92(x29)
+    li   x1, 0xF8000000
+    sw   x1, 96(x29)
+    li   x1, 0x03FFFFFF
+    sw   x1, 100(x29)
+    li   x1, 0xFF800000
+    sw   x1, 104(x29)
+    li   x1, 0x003FFFFF
+    sw   x1, 108(x29)
+    li   x1, 0xFFFE0000
+    sw   x1, 112(x29)
+    li   x1, 0x000FFFFF
+    sw   x1, 116(x29)
+    li   x1, 0xFFFFE000
+    sw   x1, 120(x29)
+    li   x1, 0x0000FFFF
+    sw   x1, 124(x29)
+    li   x1, 0xFFFFFE00
+    sw   x1, 128(x29)
+    li   x1, 0x00000FFF
+    sw   x1, 132(x29)
+    li   x1, 0x000003E0
+    sw   x1, 136(x29)
+    li   x1, 0x000000F8
+    sw   x1, 140(x29)
+    li   x1, 0x8000003E
+    sw   x1, 144(x29)
+    li   x1, 0xE000000F
+    sw   x1, 148(x29)
+    li   x1, 0xF8000003
+    sw   x1, 152(x29)
+    li   x1, 0x3E000000
+    sw   x1, 156(x29)
+    li   x1, 0x0F800000
+    sw   x1, 160(x29)
+    li   x1, 0x03E00000
+    sw   x1, 164(x29)
+    li   x1, 0x00F80000
+    sw   x1, 168(x29)
+    li   x1, 0x003E0000
+    sw   x1, 172(x29)
+    li   x1, 0x000F8000
+    sw   x1, 176(x29)
+    li   x1, 0x2003E000
+    sw   x1, 180(x29)
+    li   x1, 0x0000F800
+    sw   x1, 184(x29)
+    li   x1, 0x00003E00
+    sw   x1, 188(x29)
+    li   x1, 0x00000F80
+    sw   x1, 192(x29)
+    li   x1, 0x000003E0
+    sw   x1, 196(x29)
+    li   x1, 0x000000F8
+    sw   x1, 200(x29)
+    li   x1, 0x8000003E
+    sw   x1, 204(x29)
+    li   x1, 0xE000000F
+    sw   x1, 208(x29)
+    li   x1, 0xF8000043
+    sw   x1, 212(x29)
+    li   x1, 0x3E000000
+    sw   x1, 216(x29)
+    li   x1, 0x0F800000
+    sw   x1, 220(x29)
+    li   x1, 0x03E00000
+    sw   x1, 224(x29)
+    li   x1, 0x00F80400
+    sw   x1, 228(x29)
+    li   x1, 0x003E0000
+    sw   x1, 232(x29)
+    li   x1, 0x000F8000
+    sw   x1, 236(x29)
+    li   x1, 0x0003E000
+    sw   x1, 240(x29)
+    li   x1, 0x0000F800
+    sw   x1, 244(x29)
+    li   x1, 0x00003E00
+    sw   x1, 248(x29)
+    li   x1, 0x00000F80
+    sw   x1, 252(x29)
+    li   x1, 0x000003E0
+    sw   x1, 256(x29)
+    li   x1, 0x000000F8
+    sw   x1, 260(x29)
+    li   x1, 0x8000403E
+    sw   x1, 264(x29)
+    li   x1, 0xE000000F
+    sw   x1, 268(x29)
+    li   x1, 0xF8000003
+    sw   x1, 272(x29)
+    li   x1, 0x3E000000
+    sw   x1, 276(x29)
+    li   x1, 0x0F800000
+    sw   x1, 280(x29)
+    li   x1, 0x03E00000
+    sw   x1, 284(x29)
+    li   x1, 0x00F80000
+    sw   x1, 288(x29)
+    li   x1, 0x003E0000
+    sw   x1, 292(x29)
+    li   x1, 0x000F8000
+    sw   x1, 296(x29)
+    li   x1, 0x0003E000
+    sw   x1, 300(x29)
+    li   x1, 0x0000F800
+    sw   x1, 304(x29)
+    li   x1, 0x00003E00
+    sw   x1, 308(x29)
+    li   x1, 0x00000F80
+    sw   x1, 312(x29)
+    li   x1, 0x000003E0
+    sw   x1, 316(x29)
+    li   x1, 0x000000F8
+    sw   x1, 320(x29)
+    li   x1, 0xFFFFFFFE
+    sw   x1, 324(x29)
+    li   x1, 0xE000000F
+    sw   x1, 328(x29)
+    li   x1, 0xFFFFFFFF
+    sw   x1, 332(x29)
+    li   x1, 0xFE000000
+    sw   x1, 336(x29)
+    li   x1, 0x0FFFFFFF
+    sw   x1, 340(x29)
+    li   x1, 0xFF800000
+    sw   x1, 344(x29)
+    li   x1, 0x003FFFFF
+    sw   x1, 348(x29)
+    li   x1, 0xFFF80000
+    sw   x1, 352(x29)
+    li   x1, 0x0003FFFF
+    sw   x1, 356(x29)
+    sw   x0, 360(x29)
+    sw   x0, 364(x29)
+    sw   x0, 368(x29)
+    sw   x0, 372(x29)
+    sw   x0, 376(x29)
+    sw   x0, 380(x29)
+    sw   x0, 384(x29)
+    sw   x0, 388(x29)
+    sw   x0, 392(x29)
+    sw   x0, 396(x29)
+    sw   x0, 400(x29)
+    sw   x0, 404(x29)
+    sw   x0, 408(x29)
+    sw   x0, 412(x29)
+    sw   x0, 416(x29)
+    sw   x0, 420(x29)
+    sw   x0, 424(x29)
+    sw   x0, 428(x29)
+    sw   x0, 432(x29)
+    sw   x0, 436(x29)
+    sw   x0, 440(x29)
+    sw   x0, 444(x29)
+    sw   x0, 448(x29)
 
-    addi x12, x0, 0           # row = 0
-    addi x14, x0, 0           # current packed word
-    addi x15, x0, 0           # bit position 0..31
+    # Q3 45deg line base = 916
+    addi x29, x0, 916
+    sw   x0, 0(x29)
+    sw   x0, 4(x29)
+    sw   x0, 8(x29)
+    sw   x0, 12(x29)
+    sw   x0, 16(x29)
+    sw   x0, 20(x29)
+    sw   x0, 24(x29)
+    sw   x0, 28(x29)
+    sw   x0, 32(x29)
+    sw   x0, 36(x29)
+    sw   x0, 40(x29)
+    sw   x0, 44(x29)
+    sw   x0, 48(x29)
+    sw   x0, 52(x29)
+    sw   x0, 56(x29)
+    sw   x0, 60(x29)
+    sw   x0, 64(x29)
+    sw   x0, 68(x29)
+    sw   x0, 72(x29)
+    sw   x0, 76(x29)
+    sw   x0, 80(x29)
+    sw   x0, 84(x29)
+    li   x1, 0xF0000000
+    sw   x1, 88(x29)
+    li   x1, 0x00000001
+    sw   x1, 92(x29)
+    li   x1, 0x3F000000
+    sw   x1, 96(x29)
+    sw   x0, 100(x29)
+    li   x1, 0x07F00000
+    sw   x1, 104(x29)
+    sw   x0, 108(x29)
+    li   x1, 0x00FF0000
+    sw   x1, 112(x29)
+    sw   x0, 116(x29)
+    li   x1, 0x001FF000
+    sw   x1, 120(x29)
+    sw   x0, 124(x29)
+    li   x1, 0x0003FE00
+    sw   x1, 128(x29)
+    sw   x0, 132(x29)
+    li   x1, 0x00007FC0
+    sw   x1, 136(x29)
+    sw   x0, 140(x29)
+    li   x1, 0x00000FF8
+    sw   x1, 144(x29)
+    sw   x0, 148(x29)
+    li   x1, 0x000001FF
+    sw   x1, 152(x29)
+    li   x1, 0xE0000000
+    sw   x1, 156(x29)
+    li   x1, 0x0000003F
+    sw   x1, 160(x29)
+    li   x1, 0xFC000000
+    sw   x1, 164(x29)
+    li   x1, 0x00000007
+    sw   x1, 168(x29)
+    li   x1, 0xFF800000
+    sw   x1, 172(x29)
+    sw   x0, 176(x29)
+    li   x1, 0x1FF00000
+    sw   x1, 180(x29)
+    sw   x0, 184(x29)
+    li   x1, 0x03FE0000
+    sw   x1, 188(x29)
+    sw   x0, 192(x29)
+    li   x1, 0x007FC000
+    sw   x1, 196(x29)
+    sw   x0, 200(x29)
+    li   x1, 0x000FF800
+    sw   x1, 204(x29)
+    sw   x0, 208(x29)
+    li   x1, 0x0001FF00
+    sw   x1, 212(x29)
+    sw   x0, 216(x29)
+    li   x1, 0x00003FE0
+    sw   x1, 220(x29)
+    sw   x0, 224(x29)
+    li   x1, 0x000007FC
+    sw   x1, 228(x29)
+    li   x1, 0x80000000
+    sw   x1, 232(x29)
+    li   x1, 0x000000FF
+    sw   x1, 236(x29)
+    li   x1, 0xF0000000
+    sw   x1, 240(x29)
+    li   x1, 0x0000001F
+    sw   x1, 244(x29)
+    li   x1, 0xFE000000
+    sw   x1, 248(x29)
+    li   x1, 0x00000003
+    sw   x1, 252(x29)
+    li   x1, 0x7FC00000
+    sw   x1, 256(x29)
+    sw   x0, 260(x29)
+    li   x1, 0x0FF80000
+    sw   x1, 264(x29)
+    sw   x0, 268(x29)
+    li   x1, 0x01FF0000
+    sw   x1, 272(x29)
+    sw   x0, 276(x29)
+    li   x1, 0x003FE000
+    sw   x1, 280(x29)
+    sw   x0, 284(x29)
+    li   x1, 0x0007FC00
+    sw   x1, 288(x29)
+    sw   x0, 292(x29)
+    li   x1, 0x0000FF80
+    sw   x1, 296(x29)
+    sw   x0, 300(x29)
+    li   x1, 0x00001FF0
+    sw   x1, 304(x29)
+    sw   x0, 308(x29)
+    li   x1, 0x000003FE
+    sw   x1, 312(x29)
+    li   x1, 0xC0000000
+    sw   x1, 316(x29)
+    li   x1, 0x0000007F
+    sw   x1, 320(x29)
+    li   x1, 0xF8000000
+    sw   x1, 324(x29)
+    li   x1, 0x0000000F
+    sw   x1, 328(x29)
+    li   x1, 0xFF000000
+    sw   x1, 332(x29)
+    li   x1, 0x00000001
+    sw   x1, 336(x29)
+    li   x1, 0x1FE00000
+    sw   x1, 340(x29)
+    sw   x0, 344(x29)
+    li   x1, 0x01FC0000
+    sw   x1, 348(x29)
+    sw   x0, 352(x29)
+    li   x1, 0x001F8000
+    sw   x1, 356(x29)
+    sw   x0, 360(x29)
+    li   x1, 0x0001F000
+    sw   x1, 364(x29)
+    sw   x0, 368(x29)
+    sw   x0, 372(x29)
+    sw   x0, 376(x29)
+    sw   x0, 380(x29)
+    sw   x0, 384(x29)
+    sw   x0, 388(x29)
+    sw   x0, 392(x29)
+    sw   x0, 396(x29)
+    sw   x0, 400(x29)
+    sw   x0, 404(x29)
+    sw   x0, 408(x29)
+    sw   x0, 412(x29)
+    sw   x0, 416(x29)
+    sw   x0, 420(x29)
+    sw   x0, 424(x29)
+    sw   x0, 428(x29)
+    sw   x0, 432(x29)
+    sw   x0, 436(x29)
+    sw   x0, 440(x29)
+    sw   x0, 444(x29)
+    sw   x0, 448(x29)
 
-row_loop:
-    beq  x12, x24, shape_done
-    addi x13, x0, 0           # col = 0
+    # Q4 = exact copy of Q1 (113 words) instead of shifted ring
+    addi x29, x0, 12        # src = Q1 base
+    addi x28, x0, 1368      # dst = Q4 base
+    addi x27, x0, 113       # word count
 
-col_loop:
-    beq  x13, x24, next_row
+copy_q1_to_q4:
+    lw   x26, 0(x29)
+    sw   x26, 0(x28)
+    addi x29, x29, 4
+    addi x28, x28, 4
+    addi x27, x27, -1
+    bne  x27, x0, copy_q1_to_q4
 
-    addi x16, x0, 0           # pixel_on = 0 by default
-
-    beq  x11, x0, pixel_circle_outline
-
-    addi x19, x0, 1
-    beq  x11, x19, pixel_square_outline
-
-    jal  x0, pixel_line
-
-
-# ------------------------------------------------------------
-# Circle outline
-# For each row:
-#   left  = circle_left[row]
-#   right = 59 - left
-#
-# A pixel is on only if:
-#   col == left OR col == right
-#
-# Special case:
-#   if left == 60 => empty row
-#   if left == right => set only one pixel
-# ------------------------------------------------------------
-pixel_circle_outline:
-    slli x21, x12, 2
-    add  x21, x21, x20
-    lw   x22, 0(x21)          # x22 = left
-
-    beq  x22, x24, pixel_done # empty row if left == 60
-
-    beq  x13, x22, circle_set
-
-    addi x23, x0, 59
-    sub  x23, x23, x22        # x23 = right
-    beq  x13, x23, circle_set
-
-    jal  x0, pixel_done
-
-circle_set:
-    addi x16, x0, 1
-    jal  x0, pixel_done
-
-
-# ------------------------------------------------------------
-# Square outline
-# Outer box:
-#   rows 12..47
-#   cols 12..47
-#
-# On if:
-#   inside box AND on top/bottom/left/right border
-# ------------------------------------------------------------
-pixel_square_outline:
-    addi x21, x0, 12          # min bound
-    blt  x12, x21, pixel_done
-    blt  x13, x21, pixel_done
-
-    addi x22, x0, 48          # exclusive max bound
-    bge  x12, x22, pixel_done
-    bge  x13, x22, pixel_done
-
-    # Now inside the box, check if on border
-    addi x21, x0, 12
-    beq  x12, x21, square_set
-    beq  x13, x21, square_set
-
-    addi x21, x0, 47
-    beq  x12, x21, square_set
-    beq  x13, x21, square_set
-
-    jal  x0, pixel_done
-
-square_set:
-    addi x16, x0, 1
-    jal  x0, pixel_done
-
-
-# ------------------------------------------------------------
-# Vertical line
-# 4-pixel wide line at cols 28..31
-# ------------------------------------------------------------
-pixel_line:
-    addi x23, x0, 28
-    blt  x13, x23, pixel_done
-
-    addi x23, x0, 32
-    bge  x13, x23, pixel_done
-
-    addi x16, x0, 1
-
-
-# ------------------------------------------------------------
-# Pack current pixel into current 32-bit word
-# ------------------------------------------------------------
-pixel_done:
-    beq  x16, x0, skip_set
-
-    addi x23, x0, 1
-    sll  x23, x23, x15
-    or   x14, x14, x23
-
-skip_set:
-    addi x15, x15, 1          # next bit position
-    addi x13, x13, 1          # next col
-
-    addi x23, x0, 32
-    bne  x15, x23, col_loop
-
-    # Current word full: store it
-    sw   x14, 0(x10)
-    addi x10, x10, 4
-    addi x14, x0, 0
-    addi x15, x0, 0
-
-    jal  x0, col_loop
-
-next_row:
-    addi x12, x12, 1
-    jal  x0, row_loop
-
-shape_done:
-    # Store final partial word (16 valid low bits for 3600 total bits)
-    beq  x15, x0, render_ret
-    sw   x14, 0(x10)
-
-render_ret:
-    jalr x0, x1, 0
-
-
-# ------------------------------------------------------------
-# Circle boundary lookup
-# left bound per row for a symmetric 60x60 circle
-# right bound = 59 - left
-# 60 means empty row
-# ------------------------------------------------------------
-    .section .rodata
-    .align 2
-
-circle_left:
-    .word 60
-    .word 60
-    .word 23
-    .word 20
-    .word 17
-    .word 15
-    .word 14
-    .word 13
-    .word 11
-    .word 10
-    .word 9
-    .word 8
-    .word 8
-    .word 7
-    .word 6
-    .word 5
-    .word 5
-    .word 4
-    .word 4
-    .word 4
-    .word 3
-    .word 3
-    .word 3
-    .word 2
-    .word 2
-    .word 2
-    .word 2
-    .word 2
-    .word 2
-    .word 2
-    .word 2
-    .word 2
-    .word 2
-    .word 2
-    .word 2
-    .word 2
-    .word 2
-    .word 3
-    .word 3
-    .word 3
-    .word 4
-    .word 4
-    .word 4
-    .word 5
-    .word 5
-    .word 6
-    .word 7
-    .word 8
-    .word 8
-    .word 9
-    .word 10
-    .word 11
-    .word 13
-    .word 14
-    .word 15
-    .word 17
-    .word 20
-    .word 23
-    .word 60
-    .word 60
+    jal x0, start_inference

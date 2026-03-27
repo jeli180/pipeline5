@@ -1,3 +1,5 @@
+//NOT USED
+
 module tensor_mem (
   //writes are from mmio, reads from tensor 
   input logic clk, rst,

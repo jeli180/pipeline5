@@ -31,7 +31,7 @@ module tb_integratedTC;
   logic [31:0] inst_fe, pc_fe;
 
   //decode
-  logic rtype_de, itype_de, load_de, store_de, branch_de, jal_de, jalr_de;
+  logic rtype_de, itype_de, utype_de, load_de, store_de, branch_de, jal_de, jalr_de;
   logic [4:0] reg1_de, reg2_de, regD_de;
   logic [31:0] imm_de, inst_de, pc_de, reg1val_de, reg2val_de;
 
@@ -60,9 +60,9 @@ module tb_integratedTC;
   logic [4:0] mmio_regD_in, mmio_regD_out;
   logic [31:0] mmio_addr, mmio_write_data, mmio_read_data;
 
-  //tensor mem
-  logic tm_wen, tm_ren;
-  logic [31:0] tm_write_data, tm_waddr, tm_raddr, tm_read_data;
+  // //tensor mem
+  // logic tm_wen, tm_ren;
+  // logic [31:0] tm_write_data, tm_waddr, tm_raddr, tm_read_data;
 
   //tensor controller
   logic tc_req, tc_lw, tc_ack;
@@ -70,12 +70,19 @@ module tb_integratedTC;
 
   //systolic array
   logic sa_clear, sa_en;
-  logic [7:0] sa_row_input [0:3];
-  logic [7:0] sa_col_input [0:3];
-  logic [31:0] sa_output1 [0:3];
-  logic [31:0] sa_output2 [0:3];
-  logic [31:0] sa_output3 [0:3];
-  logic [31:0] sa_output4 [0:3];
+  // logic [7:0] sa_row_input [0:3];
+  // logic [7:0] sa_col_input [0:3];
+  // logic [31:0] sa_output1 [0:3];
+  // logic [31:0] sa_output2 [0:3];
+  // logic [31:0] sa_output3 [0:3];
+  // logic [31:0] sa_output4 [0:3];
+
+  logic [7:0] sa_row0, sa_row1, sa_row2, sa_row3;
+  logic [7:0] sa_col0, sa_col1, sa_col2, sa_col3;
+  logic [31:0] sa_out00, sa_out01, sa_out02, sa_out03;
+  logic [31:0] sa_out10, sa_out11, sa_out12, sa_out13;
+  logic [31:0] sa_out20, sa_out21, sa_out22, sa_out23;
+  logic [31:0] sa_out30, sa_out31, sa_out32, sa_out33;
 
   icache icache0 (
     .clk(clk),
@@ -138,6 +145,7 @@ module tb_integratedTC;
     //to execute
     .rtype(rtype_de),
     .itype(itype_de),
+    .utype(utype_de),
     .load(load_de),
     .store(store_de),
     .branch(branch_de),
@@ -173,6 +181,7 @@ module tb_integratedTC;
     //from decode
     .rtype(rtype_de),
     .itype(itype_de),
+    .utype(utype_de),
     .load(load_de),
     .store(store_de),
     .branch(branch_de),
@@ -411,10 +420,10 @@ module tb_integratedTC;
     .dp_ack('0),
     .dp_read_data('0),
 
-    //to tensor mem
-    .tm_wen(tm_wen),
-    .tm_write_data(tm_write_data),
-    .tm_addr(tm_waddr),
+    // //to tensor mem
+    // .tm_wen(tm_wen),
+    // .tm_write_data(tm_write_data),
+    // .tm_addr(tm_waddr),
 
     //to tc
     .tc_req(tc_req),
@@ -427,18 +436,18 @@ module tb_integratedTC;
     .tc_read_data(tc_read_data)
   );
 
-  tensor_mem tm (
-    .clk(clk),
-    .rst(rst),
+  // tensor_mem tm (
+  //   .clk(clk),
+  //   .rst(rst),
 
-    //writes from CPU (blocked rn), reads from tensor controller
-    .wen(tm_wen),
-    .ren(tm_ren),
-    .waddr(tm_waddr),
-    .raddr(tm_raddr),
-    .wdata(tm_write_data),
-    .rdata(tm_read_data)
-  );
+  //   //writes from CPU (blocked rn), reads from tensor controller
+  //   .wen(tm_wen),
+  //   .ren(tm_ren),
+  //   .waddr(tm_waddr),
+  //   .raddr(tm_raddr),
+  //   .wdata(tm_write_data),
+  //   .rdata(tm_read_data)
+  // );
 
   tensor_controller tc (
     .clk(clk),
@@ -454,24 +463,54 @@ module tb_integratedTC;
     .mmio_ack(tc_ack),
     .mmio_data_read(tc_read_data),
 
-    //to tensor mem
-    .ren(tm_ren),
-    .raddr(tm_raddr),
+    // //to tensor mem
+    // .ren(tm_ren),
+    // .raddr(tm_raddr),
 
-    //from tensor mem
-    .rdata(tm_read_data),
+    // //from tensor mem
+    // .rdata(tm_read_data),
 
     //to systolic array
     .clear(sa_clear),
     .en(sa_en),
-    .row_input(sa_row_input),
-    .col_input(sa_col_input),
+    // .row_input(sa_row_input),
+    // .col_input(sa_col_input),
 
-    //from systolic array
-    .output_col1(sa_output1),
-    .output_col2(sa_output2),
-    .output_col3(sa_output3),
-    .output_col4(sa_output4)
+    // //from systolic array
+    // .output_col1(sa_output1),
+    // .output_col2(sa_output2),
+    // .output_col3(sa_output3),
+    // .output_col4(sa_output4)
+
+    .row0_in(sa_row0),
+    .row1_in(sa_row1),
+    .row2_in(sa_row2),
+    .row3_in(sa_row3),
+
+    .col0_in(sa_col0),
+    .col1_in(sa_col1),
+    .col2_in(sa_col2),
+    .col3_in(sa_col3),
+
+    .mac00(sa_out00),
+    .mac01(sa_out01),
+    .mac02(sa_out02),
+    .mac03(sa_out03),
+
+    .mac10(sa_out10),
+    .mac11(sa_out11),
+    .mac12(sa_out12),
+    .mac13(sa_out13),
+
+    .mac20(sa_out20),
+    .mac21(sa_out21),
+    .mac22(sa_out22),
+    .mac23(sa_out23),
+
+    .mac30(sa_out30),
+    .mac31(sa_out31),
+    .mac32(sa_out32),
+    .mac33(sa_out33)
   );
 
   systolic_array #() sa0 (
@@ -481,14 +520,44 @@ module tb_integratedTC;
     //from tc
     .en(sa_en),
     .clear(sa_clear),
-    .row_input(sa_row_input),
-    .col_input(sa_col_input),
+    // .row_input(sa_row_input),
+    // .col_input(sa_col_input),
 
-    //to tc
-    .output_col1(sa_output1),
-    .output_col2(sa_output2),
-    .output_col3(sa_output3),
-    .output_col4(sa_output4)
+    // //to tc
+    // .output_col1(sa_output1),
+    // .output_col2(sa_output2),
+    // .output_col3(sa_output3),
+    // .output_col4(sa_output4)
+
+    .row0_in(sa_row0),
+    .row1_in(sa_row1),
+    .row2_in(sa_row2),
+    .row3_in(sa_row3),
+    
+    .col0_in(sa_col0),
+    .col1_in(sa_col1),
+    .col2_in(sa_col2),
+    .col3_in(sa_col3),
+
+    .mac00(sa_out00),
+    .mac01(sa_out01),
+    .mac02(sa_out02),
+    .mac03(sa_out03),
+
+    .mac10(sa_out10),
+    .mac11(sa_out11),
+    .mac12(sa_out12),
+    .mac13(sa_out13),
+
+    .mac20(sa_out20),
+    .mac21(sa_out21),
+    .mac22(sa_out22),
+    .mac23(sa_out23),
+
+    .mac30(sa_out30),
+    .mac31(sa_out31),
+    .mac32(sa_out32),
+    .mac33(sa_out33)
   );
 
   initial clk = 0;
@@ -503,10 +572,10 @@ module tb_integratedTC;
 
   initial begin
     while(1) begin
-      for (int i = 0; i < 200; i++) begin
+      for (int i = 0; i < 1000; i++) begin
         @(posedge clk);
       end
-      $display("200 cycles passed");
+      $display("1k cycles passed");
     end
   end
 
@@ -520,10 +589,29 @@ module tb_integratedTC;
     do begin
       @(posedge clk);
       @(negedge clk);
+      
+      if (file_wen && file_regD == 5'd10) $display("%d written to x10", file_write_data);
+      if (file_wen && file_regD == 5'd9) $display("%d written to x9 | CYCLE NUMBER/16", file_write_data);
+      if (tc_req && tc_lw) $display("Load from tc addr %d, in state: %d", tc_addr, tc.stateC);
+      if (tc_req && !tc_lw) $display("Store to tc addr %d: %08h", tc_addr, tc_data_write);
+      if (tc.stateC != tc.next_stateC) $display("stateC transition from %d to %d", tc.stateC, tc.next_stateC);
+      if (tc.stateC == 16) begin
+        $display("Q1 circle weight: %d| square weight: %d| line weight: %d", tc.layer2_1[0], tc.layer2_1[1], tc.layer2_1[2]);
+        $display("Q2 circle weight: %d| square weight: %d| line weight: %d", tc.layer2_2[0], tc.layer2_2[1], tc.layer2_2[2]);
+        $display("Q3 circle weight: %d| square weight: %d| line weight: %d", tc.layer2_3[0], tc.layer2_3[1], tc.layer2_3[2]);
+        $display("Q4 circle weight: %d| square weight: %d| line weight: %d", tc.layer2_4[0], tc.layer2_4[1], tc.layer2_4[2]);
+      end
+
+      // if (tc.stateC == 5 || tc.stateC == 12) begin
+      //   $display("State %d: sa outputs: %h | %h | %h | %h | %h | %h | %h | %h | %h | %h | %h | %h | %h | %h | %h | %h |", tc.stateC, sa_output1[0], sa_output1[1], sa_output1[2], sa_output1[3], sa_output2[0], sa_output2[1], sa_output2[2], sa_output2[3], sa_output3[0], sa_output3[1], sa_output3[2], sa_output3[3], sa_output4[0], sa_output4[1], sa_output4[2], sa_output4[3]);
+      // end
+      
+      //6-9 for layer1
+
     end while (!(file_wen && file_regD == 5'd31));
 
     //shape supposed to be Q1 = circle, square, line, circle
-    if (file_write_data[31] && (&file_write_data[15:12])) $display("Shape data valid: %08h", file_write_data);
+    if (&file_write_data[15:12]) $display("Shape data valid: %08h", file_write_data);
     else $display("ERROR: Shape data invalid: %08h", file_write_data);
     
     if (file_write_data[2:0] == 3'b100) $display("Q1 PASS: Circle");

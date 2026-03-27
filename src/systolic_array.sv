@@ -3,13 +3,20 @@ module systolic_array #(
 ) (
   input logic clk, rst,
   input logic en, clear,
-  input logic signed [7:0] row_input [0:3],
-  input logic signed [7:0] col_input [0:3],
+  // input logic signed [7:0] row_input [0:3],
+  // input logic signed [7:0] col_input [0:3],
 
-  output logic signed [31:0] output_col1 [0:3],
-  output logic signed [31:0] output_col2 [0:3],
-  output logic signed [31:0] output_col3 [0:3],
-  output logic signed [31:0] output_col4 [0:3]
+  // output logic signed [31:0] output_col1 [0:3],
+  // output logic signed [31:0] output_col2 [0:3],
+  // output logic signed [31:0] output_col3 [0:3],
+  // output logic signed [31:0] output_col4 [0:3]
+
+  input logic signed [7:0] row0_in, row1_in, row2_in, row3_in,
+  input logic signed [7:0] col0_in, col1_in, col2_in, col3_in,
+  output logic signed [31:0] mac00, mac01, mac02, mac03, //col then row
+  output logic signed [31:0] mac10, mac11, mac12, mac13,
+  output logic signed [31:0] mac20, mac21, mac22, mac23,
+  output logic signed [31:0] mac30, mac31, mac32, mac33
 );
 
   //seperate generates for each column since outputs don't support indexing through col
@@ -25,10 +32,24 @@ module systolic_array #(
   logic signed [7:0] next_col3_input2, next_col3_input3, next_col3_input4;
   logic signed [7:0] next_col4_input2, next_col4_input3, next_col4_input4;
 
-  assign col1_input1 = (rst || clear) ? '0 : col_input[0];
-  assign col2_input1 = (rst || clear) ? '0 : col_input[1];
-  assign col3_input1 = (rst || clear) ? '0 : col_input[2];
-  assign col4_input1 = (rst || clear) ? '0 : col_input[3];
+  assign col1_input1 = (rst || clear) ? '0 : col0_in;
+  assign col2_input1 = (rst || clear) ? '0 : col1_in;
+  assign col3_input1 = (rst || clear) ? '0 : col2_in;
+  assign col4_input1 = (rst || clear) ? '0 : col3_in;
+
+  //FOR TEST
+  // logic signed [7:0] test_row0, test_row1, test_row2, test_row3;
+  // logic signed [7:0] test_col0, test_col1, test_col2, test_col3;
+
+  // assign test_row0 = row_input[0];
+  // assign test_row1 = row_input[1];
+  // assign test_row2 = row_input[2];
+  // assign test_row3 = row_input[3];
+
+  // assign test_col0 = col_input[0];
+  // assign test_col1 = col_input[1];
+  // assign test_col2 = col_input[2];
+  // assign test_col3 = col_input[3];
 
   always_comb begin
     next_col1_input2 = col1_input2;
@@ -116,9 +137,9 @@ module systolic_array #(
     .rst(rst),
     .clear(clear),
     .en(en),
-    .row_input(row_input[0]),
+    .row_input(row0_in),
     .col_input(col1_input1),
-    .accumulate(output_col1[0]) //change output_colX for different gen loop
+    .accumulate(mac00) //change output_colX for different gen loop
   );
 
   mac unit12(
@@ -126,9 +147,9 @@ module systolic_array #(
     .rst(rst),
     .clear(clear),
     .en(en),
-    .row_input(row_input[1]),
+    .row_input(row1_in),
     .col_input(col1_input2),
-    .accumulate(output_col1[1]) //change output_colX for different gen loop
+    .accumulate(mac01) //change output_colX for different gen loop
   );
 
   mac unit13(
@@ -136,9 +157,9 @@ module systolic_array #(
     .rst(rst),
     .clear(clear),
     .en(en),
-    .row_input(row_input[2]),
+    .row_input(row2_in),
     .col_input(col1_input3),
-    .accumulate(output_col1[2]) //change output_colX for different gen loop
+    .accumulate(mac02) //change output_colX for different gen loop
   );
 
   mac unit14(
@@ -146,9 +167,9 @@ module systolic_array #(
     .rst(rst),
     .clear(clear),
     .en(en),
-    .row_input(row_input[3]),
+    .row_input(row3_in),
     .col_input(col1_input4),
-    .accumulate(output_col1[3]) //change output_colX for different gen loop
+    .accumulate(mac03) //change output_colX for different gen loop
   );
 
   //===== Col 2 MACs
@@ -158,9 +179,9 @@ module systolic_array #(
     .rst(rst),
     .clear(clear),
     .en(en),
-    .row_input(row_input[0]),
+    .row_input(row0_in),
     .col_input(col2_input1),
-    .accumulate(output_col2[0]) //change output_colX for different gen loop
+    .accumulate(mac10) //change output_colX for different gen loop
   );
 
   mac unit22(
@@ -168,9 +189,9 @@ module systolic_array #(
     .rst(rst),
     .clear(clear),
     .en(en),
-    .row_input(row_input[1]),
+    .row_input(row1_in),
     .col_input(col2_input2),
-    .accumulate(output_col2[1]) //change output_colX for different gen loop
+    .accumulate(mac11) //change output_colX for different gen loop
   );
 
   mac unit23(
@@ -178,9 +199,9 @@ module systolic_array #(
     .rst(rst),
     .clear(clear),
     .en(en),
-    .row_input(row_input[2]),
+    .row_input(row2_in),
     .col_input(col2_input3),
-    .accumulate(output_col2[2]) //change output_colX for different gen loop
+    .accumulate(mac12) //change output_colX for different gen loop
   );
 
   mac unit24(
@@ -188,9 +209,9 @@ module systolic_array #(
     .rst(rst),
     .clear(clear),
     .en(en),
-    .row_input(row_input[3]),
+    .row_input(row3_in),
     .col_input(col2_input4),
-    .accumulate(output_col2[3]) //change output_colX for different gen loop
+    .accumulate(mac13) //change output_colX for different gen loop
   );
 
   //===== Col 3 MACs
@@ -200,9 +221,9 @@ module systolic_array #(
     .rst(rst),
     .clear(clear),
     .en(en),
-    .row_input(row_input[0]),
+    .row_input(row0_in),
     .col_input(col3_input1),
-    .accumulate(output_col3[0]) //change output_colX for different gen loop
+    .accumulate(mac20) //change output_colX for different gen loop
   );
 
   mac unit32(
@@ -210,9 +231,9 @@ module systolic_array #(
     .rst(rst),
     .clear(clear),
     .en(en),
-    .row_input(row_input[1]),
+    .row_input(row1_in),
     .col_input(col3_input2),
-    .accumulate(output_col3[1]) //change output_colX for different gen loop
+    .accumulate(mac21) //change output_colX for different gen loop
   );
 
   mac unit33(
@@ -220,9 +241,9 @@ module systolic_array #(
     .rst(rst),
     .clear(clear),
     .en(en),
-    .row_input(row_input[2]),
+    .row_input(row2_in),
     .col_input(col3_input3),
-    .accumulate(output_col3[2]) //change output_colX for different gen loop
+    .accumulate(mac22) //change output_colX for different gen loop
   );
 
   mac unit34(
@@ -230,9 +251,9 @@ module systolic_array #(
     .rst(rst),
     .clear(clear),
     .en(en),
-    .row_input(row_input[3]),
+    .row_input(row3_in),
     .col_input(col3_input4),
-    .accumulate(output_col3[3]) //change output_colX for different gen loop
+    .accumulate(mac23) //change output_colX for different gen loop
   );
 
   //===== Col 4 MACs
@@ -242,9 +263,9 @@ module systolic_array #(
     .rst(rst),
     .clear(clear),
     .en(en),
-    .row_input(row_input[0]),
+    .row_input(row0_in),
     .col_input(col4_input1),
-    .accumulate(output_col4[0]) //change output_colX for different gen loop
+    .accumulate(mac30) //change output_colX for different gen loop
   );
 
   mac unit42(
@@ -252,9 +273,9 @@ module systolic_array #(
     .rst(rst),
     .clear(clear),
     .en(en),
-    .row_input(row_input[1]),
+    .row_input(row1_in),
     .col_input(col4_input2),
-    .accumulate(output_col4[1]) //change output_colX for different gen loop
+    .accumulate(mac31) //change output_colX for different gen loop
   );
 
   mac unit43(
@@ -262,9 +283,9 @@ module systolic_array #(
     .rst(rst),
     .clear(clear),
     .en(en),
-    .row_input(row_input[2]),
+    .row_input(row2_in),
     .col_input(col4_input3),
-    .accumulate(output_col4[2]) //change output_colX for different gen loop
+    .accumulate(mac32) //change output_colX for different gen loop
   );
 
   mac unit44(
@@ -272,9 +293,9 @@ module systolic_array #(
     .rst(rst),
     .clear(clear),
     .en(en),
-    .row_input(row_input[3]),
+    .row_input(row3_in),
     .col_input(col4_input4),
-    .accumulate(output_col4[3]) //change output_colX for different gen loop
+    .accumulate(mac33) //change output_colX for different gen loop
   );
 
   /* generate version that isn't supported
