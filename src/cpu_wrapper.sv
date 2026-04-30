@@ -1,4 +1,4 @@
-module cpu (
+module cpu_wrapper (
   input logic clk, rst,
 
   //to mmio
@@ -37,7 +37,7 @@ module cpu (
   logic [31:0] inst_fe, pc_fe;
 
   //decode
-  logic rtype_de, itype_de, load_de, store_de, branch_de, jal_de, jalr_de;
+  logic rtype_de, itype_de, utype_de, load_de, store_de, branch_de, jal_de, jalr_de;
   logic [4:0] reg1_de, reg2_de, regD_de;
   logic [31:0] imm_de, inst_de, pc_de, reg1val_de, reg2val_de;
 
@@ -112,6 +112,7 @@ module cpu (
     //to execute
     .rtype(rtype_de),
     .itype(itype_de),
+    .utype(utype_de),
     .load(load_de),
     .store(store_de),
     .branch(branch_de),
@@ -147,6 +148,7 @@ module cpu (
     //from decode
     .rtype(rtype_de),
     .itype(itype_de),
+    .utype(utype_de),
     .load(load_de),
     .store(store_de),
     .branch(branch_de),

@@ -1,3 +1,5 @@
+`default_nettype none
+
 module mem (
   input logic clk, rst,
 
@@ -14,8 +16,8 @@ module mem (
 
   //from execute (stays the same during stall)
   input logic regwrite, load, store, jal, jalr, branch_cond,
-  input logic [31:0] target, //jal, jalr, or branch pc target
-  input logic [31:0] result, //either mem addr for lw/sw, rd val for rtype/itype/jal/jalr
+  input logic [31:0] target,
+  input logic [31:0] result,
   input logic [31:0] store_data,
   input logic [4:0] regD,
 
@@ -23,23 +25,22 @@ module mem (
   input logic [4:0] reg1_ex, reg2_ex,
 
   //to wb (registered)
-  output logic regwriteF, jalF, //jal on for either jal or jalr
+  output logic regwriteF, jalF,
   output logic [4:0] regDF,
   output logic [31:0] targetF, regdataF,
 
-  //mmio (comb to allow for same cycle data reads)
-  output logic mmio_req, mmio_lw, //1 is read, 0 is write
+  //mmio
+  output logic mmio_req, mmio_lw,
   output logic [31:0] mmio_addr, mmio_data_write,
   output logic [4:0] mmio_regD,
   input logic [31:0] mmio_data_read,
-  input logic hit_ack, miss_store, load_done_stall, passive_stall, //control signals, only 1 high 
+  input logic hit_ack, miss_store, load_done_stall, passive_stall,
   input logic [4:0] regD_done
 );
 
   localparam int MSHR_REG = 4;
 
-  //recieve is for processing mmio inputs after mmio req cycle
-  typedef enum {
+  typedef enum logic {
     NORMAL,
     RECIEVE
   } state_lw;
@@ -49,130 +50,110 @@ module mem (
   logic dep_stall, lag_stall, mshr_empty;
   logic [2:0] last_filled;
 
-  logic [4:0] mshr_reg [1:MSHR_REG]; //tracks regs in mshr for dependency stalling
-  logic mshr_valid [1:MSHR_REG]; //tracks whether corresponding mshr reg is valid 
-  logic [4:0] next_mshr_reg [1:MSHR_REG]; 
-  logic next_mshr_valid [1:MSHR_REG];  
+  // 0-based arrays: entries 0,1,2,3
+  logic [4:0] mshr_reg        [0:MSHR_REG-1];
+  logic       mshr_valid      [0:MSHR_REG-1];
+  logic [4:0] next_mshr_reg   [0:MSHR_REG-1];
+  logic       next_mshr_valid [0:MSHR_REG-1];
 
   logic next_regwriteF, next_jalF;
   logic [4:0] next_regDF;
   logic [31:0] next_targetF, next_regdataF;
   logic load_stall_store, next_load_stall_store;
 
-  assign last_filled = mshr_valid[4] ? 3'd4 : mshr_valid[3] ? 3'd3 : mshr_valid[2] ? 3'd2 : mshr_valid[1] ? 3'd1 : 3'd0;
-  assign mshr_empty = !mshr_valid[1] && !mshr_valid[2] && !mshr_valid[3] && !mshr_valid[4];
+  assign last_filled =
+      mshr_valid[3] ? 3'd4 :
+      mshr_valid[2] ? 3'd3 :
+      mshr_valid[1] ? 3'd2 :
+      mshr_valid[0] ? 3'd1 :
+                      3'd0;
+
+  assign mshr_empty =
+      !mshr_valid[0] &&
+      !mshr_valid[1] &&
+      !mshr_valid[2] &&
+      !mshr_valid[3];
+
   assign stall = load_done_stall || passive_stall || dep_stall || lag_stall;
 
-  /*
-    functionality:
-    - flush if jal
-    - stall gen
-    - branch flush/target gen
-      - if branch or jal, raise stall until mshr_empty high before raising the hazard
-    - store 4 mshr regs, if reg1, reg2 from ex match any, stall
-      - the cycle dep_stall is raised, reg val and reg ID will be in WB registers, so no need to do anything extra
-    - register forwarding
-  */
-
-  /*
-    COMB LOOP DEBUGGING
-    - need to get rid of same cycle feedback
-    - hit_ack, miss_send, passive stall are all same cycle feedback, mem cant act on these signals until next cycle
-
-  */
-
-
   always_comb begin
+    // ===== defaults =====
 
-    //===== defaults =====\\
-
-    //mshr shift reg stays the same
-    for (int i = 1; i < MSHR_REG + 1; i++) begin
-      next_mshr_reg[i] = mshr_reg[i];
+    for (int i = 0; i < MSHR_REG; i++) begin
+      next_mshr_reg[i]   = mshr_reg[i];
       next_mshr_valid[i] = mshr_valid[i];
     end
-    
+
     branch_flush = 1'b0;
     b_target = 32'hDEAD_BEEF;
 
     dep_stall = 1'b0;
     lag_stall = 1'b0;
 
-    mmio_req = 0;
-    mmio_lw = 0;
-    mmio_addr = '0;
-    mmio_data_write = '0;
-    mmio_regD = '0;
+    mmio_req = 1'b0;
+    mmio_lw = 1'b0;
+    mmio_addr = 32'b0;
+    mmio_data_write = 32'b0;
+    mmio_regD = 5'b0;
 
-    regD_ex = '0;
-    regD_val_ex = '0;
-    regwrite_ex = 0;
+    regD_ex = 5'b0;
+    regD_val_ex = 32'b0;
+    regwrite_ex = 1'b0;
 
     next_load_stall_store = load_done_stall;
 
     next_state = state;
 
-    //wb outputs default to passthrough
+    // wb outputs default to passthrough
     next_regwriteF = regwrite;
     next_jalF = jal || jalr;
     next_regDF = regD;
     next_targetF = target;
     next_regdataF = result;
 
-    //===== behavior =====\\
     case (state)
       NORMAL: begin
-
-        //flush if jal_flush hazard, mshr reg guaranteed empty
         if (jal_flush) begin
-
-          next_regwriteF = 0;
-          next_jalF = 0;
-          next_regDF = '0;
-          next_targetF = '0;
-          next_regdataF = '0;
+          next_regwriteF = 1'b0;
+          next_jalF = 1'b0;
+          next_regDF = 5'b0;
+          next_targetF = 32'b0;
+          next_regdataF = 32'b0;
 
         end else if (load_done_stall) begin
-
-          //inject instruction and shift registers up
-          for (int i = 1; i < MSHR_REG; i++) begin
-            next_mshr_reg[i] = mshr_reg[i + 1];
+          // completed MSHR load returns to WB, shift queue up
+          for (int i = 0; i < MSHR_REG-1; i++) begin
+            next_mshr_reg[i]   = mshr_reg[i + 1];
             next_mshr_valid[i] = mshr_valid[i + 1];
           end
-          next_mshr_reg[MSHR_REG] = 5'b11111; //invalid reg
-          next_mshr_valid[MSHR_REG] = 1'b0;
+          next_mshr_reg[MSHR_REG-1]   = 5'b11111;
+          next_mshr_valid[MSHR_REG-1] = 1'b0;
 
           next_regwriteF = 1'b1;
           next_jalF = 1'b0;
           next_regDF = regD_done;
-          next_targetF = 1'b0;
+          next_targetF = 32'b0;
           next_regdataF = mmio_data_read;
 
         end else if (
-          (reg1_ex == mshr_reg[1] && mshr_valid[1]) 
-        || (reg1_ex == mshr_reg[2] && mshr_valid[2])
-        || (reg1_ex == mshr_reg[3] && mshr_valid[3])
-        || (reg1_ex == mshr_reg[4] && mshr_valid[4])
-        || (reg2_ex == mshr_reg[1] && mshr_valid[1])
-        || (reg2_ex == mshr_reg[2] && mshr_valid[2])
-        || (reg2_ex == mshr_reg[3] && mshr_valid[3])
-        || (reg2_ex == mshr_reg[4] && mshr_valid[4])
+            (reg1_ex == mshr_reg[0] && mshr_valid[0])
+         || (reg1_ex == mshr_reg[1] && mshr_valid[1])
+         || (reg1_ex == mshr_reg[2] && mshr_valid[2])
+         || (reg1_ex == mshr_reg[3] && mshr_valid[3])
+         || (reg2_ex == mshr_reg[0] && mshr_valid[0])
+         || (reg2_ex == mshr_reg[1] && mshr_valid[1])
+         || (reg2_ex == mshr_reg[2] && mshr_valid[2])
+         || (reg2_ex == mshr_reg[3] && mshr_valid[3])
         ) begin
-          
-          dep_stall = 1'b1; //stall pipeline
+          dep_stall = 1'b1;
 
-          //send nop instead of current instructions, as that will create duplicate(s) of the stalled instruction
-          next_regwriteF = 0;
-          next_jalF = 0;
-          next_regDF = '0;
-          next_targetF = '0;
-          next_regdataF = '0;
-
-          //pipeline stops stalling when correct reg is in wb, so wb will forward val back
+          next_regwriteF = 1'b0;
+          next_jalF = 1'b0;
+          next_regDF = 5'b0;
+          next_targetF = 32'b0;
+          next_regdataF = 32'b0;
 
         end else if (load || store) begin
-          
-          //req mmio
           mmio_req = 1'b1;
           mmio_lw = load;
           mmio_addr = result;
@@ -180,106 +161,95 @@ module mem (
           mmio_regD = regD;
 
           lag_stall = 1'b1;
-          
-          next_regwriteF = 0;
-          next_jalF = 0;
-          next_regDF = '0;
-          next_targetF = '0;
-          next_regdataF = '0;
+
+          next_regwriteF = 1'b0;
+          next_jalF = 1'b0;
+          next_regDF = 5'b0;
+          next_targetF = 32'b0;
+          next_regdataF = 32'b0;
 
           next_state = RECIEVE;
 
         end else if (jal || jalr || branch_cond || regwrite) begin
-          
-          //all regwrite instructions will have regdata, can send back
-          //stalling for hazards doesn't affect since the send back regdata won't be used until stall lifted
           if (regwrite) begin
-            //regD_ex = load_stall_store ? regDF: regD; | 1.17
-            //regD_val_ex = load_stall_store ? regdataF: result; | 1.17
             regD_ex = regD;
             regD_val_ex = result;
             regwrite_ex = 1'b1;
           end
 
-          //wait for mshr empty, at which cpu stops stalling when last out mshr instruction in wb
           if (jal || jalr || branch_cond) begin
             if (!mshr_empty) begin
               dep_stall = 1'b1;
 
-              next_regwriteF = 0;
-              next_jalF = 0;
-              next_regDF = '0;
-              next_targetF = '0;
-              next_regdataF = '0;
+              next_regwriteF = 1'b0;
+              next_jalF = 1'b0;
+              next_regDF = 5'b0;
+              next_targetF = 32'b0;
+              next_regdataF = 32'b0;
             end else begin
               branch_flush = branch_cond;
               b_target = branch_cond ? target : 32'hDEAD_BEEF;
-
-              //default pass throughs are fine
             end
           end
         end
       end
-      RECIEVE: begin
 
+      RECIEVE: begin
         next_state = NORMAL;
 
         if (load_done_stall) begin
-
-          for (int i = 1; i < MSHR_REG; i++) begin
-            next_mshr_reg[i] = mshr_reg[i + 1];
+          for (int i = 0; i < MSHR_REG-1; i++) begin
+            next_mshr_reg[i]   = mshr_reg[i + 1];
             next_mshr_valid[i] = mshr_valid[i + 1];
           end
-          next_mshr_reg[MSHR_REG] = 5'b11111; //invalid reg
-          next_mshr_valid[MSHR_REG] = 1'b0;
+          next_mshr_reg[MSHR_REG-1]   = 5'b11111;
+          next_mshr_valid[MSHR_REG-1] = 1'b0;
 
           next_regwriteF = 1'b1;
           next_jalF = 1'b0;
           next_regDF = regD_done;
-          next_targetF = 1'b0;
+          next_targetF = 32'b0;
           next_regdataF = mmio_data_read;
 
-          //req mmio again
-          next_state = RECIEVE;
-
+          // req mmio again
           mmio_req = 1'b1;
           mmio_lw = load;
           mmio_addr = result;
           mmio_data_write = store_data;
           mmio_regD = regD;
-        end else if (load) begin
-          //if load hit, jal will forward the register back
 
-          //act on hit_ack, miss_send, passive_stall
+          next_state = RECIEVE;
+
+        end else if (load) begin
           if (hit_ack) begin
             next_regdataF = mmio_data_read;
-            //other outputs to wb are defaults
-            
+
             regD_ex = regD;
             regD_val_ex = mmio_data_read;
             regwrite_ex = 1'b1;
-            
-          end else if (miss_store) begin //if load miss, dep_stall will be raised since it enters mshr_reg on next cycle
-            if (last_filled < MSHR_REG) begin //should never be wrong
-              next_mshr_reg[last_filled + 1] = regD; //mshr_reg never overflows since actual mshr guards against overflow with stall
-              next_mshr_valid[last_filled + 1] = 1'b1;
+
+          end else if (miss_store) begin
+            if (last_filled < 3'd4) begin
+              next_mshr_reg[last_filled[1:0]]   = regD;
+              next_mshr_valid[last_filled[1:0]] = 1'b1;
             end
 
-            if (reg1_ex == regD || reg2_ex == regD) dep_stall = 1'b1;
+            if (reg1_ex == regD || reg2_ex == regD) begin
+              dep_stall = 1'b1;
+            end
 
-            next_regwriteF = 0;
-            next_jalF = 0;
-            next_regDF = '0;
-            next_targetF = '0;
-            next_regdataF = '0;
+            next_regwriteF = 1'b0;
+            next_jalF = 1'b0;
+            next_regDF = 5'b0;
+            next_targetF = 32'b0;
+            next_regdataF = 32'b0;
           end else if (passive_stall) begin
-            next_regwriteF = 0;
-            next_jalF = 0;
-            next_regDF = '0;
-            next_targetF = '0;
-            next_regdataF = '0;
+            next_regwriteF = 1'b0;
+            next_jalF = 1'b0;
+            next_regDF = 5'b0;
+            next_targetF = 32'b0;
+            next_regdataF = 32'b0;
 
-            //req mmio again
             mmio_req = 1'b1;
             mmio_lw = load;
             mmio_addr = result;
@@ -288,16 +258,16 @@ module mem (
 
             next_state = RECIEVE;
           end
-        end else begin //store
-          //don't act on store hit(default outputs to wb are fine), miss_send will never be high on store
-          if (passive_stall) begin
-            next_regwriteF = 0;
-            next_jalF = 0;
-            next_regDF = '0;
-            next_targetF = '0;
-            next_regdataF = '0;
 
-            //req mmio again
+        end else begin
+          // store
+          if (passive_stall) begin
+            next_regwriteF = 1'b0;
+            next_jalF = 1'b0;
+            next_regDF = 5'b0;
+            next_targetF = 32'b0;
+            next_regdataF = 32'b0;
+
             mmio_req = 1'b1;
             mmio_lw = load;
             mmio_addr = result;
@@ -307,27 +277,31 @@ module mem (
             next_state = RECIEVE;
           end
         end
+      end
+
+      default: begin
+        next_state = NORMAL;
       end
     endcase
   end
 
   always_ff @(posedge clk or posedge rst) begin
     if (rst) begin
-      for (int i = 1; i < MSHR_REG + 1; i++) begin
-        mshr_reg[i] <= '0;
-        mshr_valid[i] <= 0;
+      for (int i = 0; i < MSHR_REG; i++) begin
+        mshr_reg[i] <= 5'b0;
+        mshr_valid[i] <= 1'b0;
       end
 
-      regwriteF <= 0;
-      jalF <= 0;
-      regDF <= '0;
-      targetF <= '0;
-      regdataF <= '0;
-      load_stall_store <= 0;
+      regwriteF <= 1'b0;
+      jalF <= 1'b0;
+      regDF <= 5'b0;
+      targetF <= 32'b0;
+      regdataF <= 32'b0;
+      load_stall_store <= 1'b0;
 
       state <= NORMAL;
     end else begin
-      for (int i = 1; i < MSHR_REG + 1; i++) begin
+      for (int i = 0; i < MSHR_REG; i++) begin
         mshr_reg[i] <= next_mshr_reg[i];
         mshr_valid[i] <= next_mshr_valid[i];
       end
@@ -344,3 +318,5 @@ module mem (
   end
 
 endmodule
+
+`default_nettype wire

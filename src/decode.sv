@@ -154,6 +154,7 @@ module decode (
           // == COMB
           //next_reg1val = file_val1;
         end
+        default:;
       endcase
     end
   end
